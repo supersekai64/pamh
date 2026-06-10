@@ -7,6 +7,7 @@
   "license": "MIT",
   "packageManager": "pnpm@9.15.0",
   "scripts": {
+    "setup": "pnpm install && pnpm build && pnpm link:cli",
     "build": "pnpm -r run build",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",

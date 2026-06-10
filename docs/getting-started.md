@@ -7,6 +7,16 @@
 
 ## Installation
 
+**One-command setup** (recommended):
+
+```bash
+pnpm setup
+```
+
+This installs dependencies, builds all packages, and links the `memory` command globally.
+
+**Manual installation** (if you need more control):
+
 ```bash
 pnpm install
 ```
