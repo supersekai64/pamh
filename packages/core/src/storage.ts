@@ -1,5 +1,5 @@
 import { mkdir, readFile, writeFile, readdir, stat, rm } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, dirname, parse } from 'node:path'
 import { homedir } from 'node:os'
 import { existsSync } from 'node:fs'
 import { parseMarkdown, serializeMarkdown } from './markdown.js'
@@ -34,8 +34,24 @@ export function getGlobalMemoryPath(): string {
   return join(homedir(), 'ai-memory')
 }
 
+export function findMemoryBase(startPath: string): string | null {
+  let currentPath = startPath
+  const root = parse(currentPath).root
+
+  while (currentPath !== root) {
+    const memoryPath = join(currentPath, PROJECT_MEMORY_DIR)
+    if (existsSync(memoryPath)) {
+      return memoryPath
+    }
+    currentPath = dirname(currentPath)
+  }
+
+  return null
+}
+
 export function getProjectMemoryPath(projectPath: string): string {
-  return join(projectPath, PROJECT_MEMORY_DIR)
+  const existing = findMemoryBase(projectPath)
+  return existing ?? join(projectPath, PROJECT_MEMORY_DIR)
 }
 
 export async function initGlobalMemory(): Promise<string> {
@@ -51,7 +67,7 @@ export async function initGlobalMemory(): Promise<string> {
 }
 
 export async function initProjectMemory(projectPath: string): Promise<string> {
-  const basePath = getProjectMemoryPath(projectPath)
+  const basePath = join(projectPath, PROJECT_MEMORY_DIR)
 
   await mkdir(basePath, { recursive: true })
   await mkdir(join(basePath, 'sessions'), { recursive: true })

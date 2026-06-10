@@ -24,6 +24,7 @@ import { registerContextCommand } from './commands/context.js'
 import { registerSemanticCommand } from './commands/semantic.js'
 import { registerServerCommand } from './commands/server.js'
 import { registerUiCommand } from './commands/ui.js'
+import { registerStatusCommand } from './commands/status.js'
 
 const program = new Command()
 
@@ -51,5 +52,6 @@ registerContextCommand(program)
 registerSemanticCommand(program)
 registerServerCommand(program)
 registerUiCommand(program)
+registerStatusCommand(program)
 
 program.parse()

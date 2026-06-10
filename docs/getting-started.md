@@ -35,17 +35,71 @@ pnpm link:cli
 
 This links the `memory` command globally from `packages/cli`. Use this root script instead of `pnpm --filter @pamh/cli link --global`, because `pnpm link` does not support filtered workspace execution consistently across PNPM versions and also requires a configured PNPM global bin directory.
 
-## Usage
+## Initialize Memory
+
+### Project Memory
+
+```bash
+memory init
+```
+
+This creates `.ai-memory/` in the current directory and auto-configures supported project-level agent integrations. Use `memory init --no-integrations` for memory storage only.
+
+### Global Memory
 
 ```bash
 memory init global
-memory init project
-memory add
-memory list
-memory search "query"
 ```
 
-`memory init project` initializes `.ai-memory` and auto-configures supported project-level agent integrations. Use `memory init project --no-integrations` for memory storage only.
+This creates `~/ai-memory/` for cross-project preferences and patterns.
+
+## How Memory Discovery Works
+
+PAMH searches for `.ai-memory/` by walking up the directory tree, similar to how `.git` works.
+
+**Example 1: Shared memory (monorepo)**
+
+```bash
+cd ~/projects/client-app
+memory init
+# → Creates ~/projects/client-app/.ai-memory/
+
+cd wordpress-plugin
+memory add -t decision -c "Use TypeScript"
+# → Uses ~/projects/client-app/.ai-memory/
+
+cd ../nextjs-admin
+memory list
+# → Shows the same memory
+```
+
+**Example 2: Isolated memory**
+
+```bash
+cd ~/projects/client-app/wordpress-plugin
+memory init
+# → Creates ~/projects/client-app/wordpress-plugin/.ai-memory/
+# → This project now has its own isolated memory
+```
+
+## Basic Usage
+
+```bash
+# Add a memory
+memory add -t decision -s project -c "Use PostgreSQL for the main database"
+
+# List memories
+memory list
+
+# Search memories
+memory search "database"
+
+# Show memory status
+memory status
+
+# Compile context
+memory context --query "architecture" --output
+```
 
 ## Development
 

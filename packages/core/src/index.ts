@@ -5,6 +5,7 @@ export { parseMarkdown, serializeMarkdown } from './markdown.js'
 export {
   getGlobalMemoryPath,
   getProjectMemoryPath,
+  findMemoryBase,
   initGlobalMemory,
   initProjectMemory,
   createMemory,

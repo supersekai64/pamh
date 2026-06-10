@@ -1,10 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { compileContext, writeCompiledContext } from './context.js'
 import { createMemory, initProjectMemory } from './storage.js'
-import { saveLinkedProjects } from './linked-projects.js'
 
 describe('context', () => {
   let globalDir: string
@@ -113,32 +112,6 @@ describe('context', () => {
       expect(compiled.sources.project.length).toBe(1)
       expect(compiled.content).toContain('Another memory')
       expect(compiled.content).not.toContain('Active memory')
-    })
-
-    it('should resolve relative linked projects from the project root', async () => {
-      const workspaceDir = await mkdtemp(join(tmpdir(), 'pamh-context-workspace-'))
-      const appDir = join(workspaceDir, 'app')
-      const linkedDir = join(workspaceDir, 'linked')
-
-      await mkdir(appDir)
-      await mkdir(linkedDir)
-
-      const appBasePath = await initProjectMemory(appDir)
-      const linkedBasePath = await initProjectMemory(linkedDir)
-
-      await createMemory(linkedBasePath, {
-        type: 'knowledge',
-        scope: 'project',
-        content: 'Linked relative memory',
-      })
-      await saveLinkedProjects(appBasePath, { projects: ['../linked'] })
-
-      const compiled = await compileContext(globalDir, appBasePath, { includeLinked: true })
-
-      await rm(workspaceDir, { recursive: true, force: true })
-
-      expect(compiled.sources.linked.length).toBe(1)
-      expect(compiled.content).toContain('Linked relative memory')
     })
   })
 

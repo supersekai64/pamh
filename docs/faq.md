@@ -75,3 +75,37 @@ memory add --project -t session -s project --tags "opencode" -c "Implemented the
 ## Should I commit `.ai-memory` to Git?
 
 That depends on the project. If memory contains only project knowledge and no secrets, committing it can make memory portable with the repository. Review `docs/security.md` before doing so.
+
+## How do I share memory between projects?
+
+PAMH uses a `.git`-like discovery mechanism. Initialize memory in a parent directory, and all subdirectories will automatically use it:
+
+```bash
+cd ~/projects/client-app
+memory init
+
+cd wordpress-plugin
+memory add -t decision -c "Use TypeScript"
+# → Stored in ~/projects/client-app/.ai-memory/
+
+cd ../nextjs-admin
+memory list
+# → Shows the same memory
+```
+
+If you want isolated memory for a specific project, initialize it in that project's directory:
+
+```bash
+cd ~/projects/client-app/wordpress-plugin
+memory init
+# → Creates isolated memory for this project only
+```
+
+Use `memory status` to see which memory directory is currently active.
+
+## What's the difference between global and project memory?
+
+- **Global memory** (`~/ai-memory/`): Cross-project preferences, patterns, and reusable knowledge. Use `memory init global` to create it.
+- **Project memory** (`.ai-memory/`): Project-specific decisions, architecture, sessions, and tasks. Use `memory init` to create it.
+
+Both can be used together. Project memory is automatically discovered by walking up the directory tree.

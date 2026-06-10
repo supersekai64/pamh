@@ -27,13 +27,70 @@ pnpm link:cli
 ## Quick Start
 
 ```bash
-memory init project
-memory add --project -t decision -s project -c "Use SQLite as a local rebuildable index."
-memory search "SQLite" --project
-memory context --project --query "architecture" --output
+# Initialize memory in current directory
+memory init
+
+# Add a memory
+memory add -t decision -s project -c "Use SQLite as a local rebuildable index."
+
+# List memories
+memory list
+
+# Search memories
+memory search "SQLite"
+
+# Show memory status
+memory status
 ```
 
-`memory init project` also creates best-effort agent and IDE integration files so MCP-compatible tools can discover PAMH with minimal manual setup.
+## How It Works
+
+PAMH works like `.git` - it searches for `.ai-memory/` by walking up the directory tree.
+
+### Shared Memory (Monorepo)
+
+```
+~/projects/client-app/
+  ├── .ai-memory/              ← Initialize here
+  ├── wordpress-plugin/        ← Uses parent memory
+  └── nextjs-admin/            ← Uses parent memory
+```
+
+```bash
+cd ~/projects/client-app
+memory init
+
+cd wordpress-plugin
+memory add -t decision -c "Use TypeScript"
+# → Stored in ~/projects/client-app/.ai-memory/
+
+cd ../nextjs-admin
+memory list
+# → Shows the same memory
+```
+
+### Isolated Memory
+
+```
+~/projects/client-app/
+  ├── wordpress-plugin/
+  │   └── .ai-memory/          ← Initialize here for isolated memory
+  └── nextjs-admin/
+      └── .ai-memory/          ← Initialize here for isolated memory
+```
+
+```bash
+cd ~/projects/client-app/wordpress-plugin
+memory init
+# → Creates isolated memory for this project only
+```
+
+### Global Memory
+
+```bash
+memory init global
+# → Creates ~/ai-memory/ for cross-project preferences
+```
 
 ## Features
 
@@ -64,8 +121,8 @@ memory context --project --query "architecture" --output
 
 - [CLI Workflow](examples/cli-workflow.md)
 - [Export / Import](examples/export-import.md)
+- [Shared Memory](examples/shared-memory.md)
 - [MCP Config](examples/mcp-config.json)
-- [Linked Projects](examples/linked-projects.yaml)
 
 ## MCP
 

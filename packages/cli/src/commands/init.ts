@@ -16,14 +16,14 @@ export function registerInitCommand(program: Command) {
       console.log(`Global memory initialized at: ${path}`)
     })
 
-  init
-    .command('project')
-    .description('Initialize project memory in ./.ai-memory')
+  program
+    .command('init')
+    .description('Initialize memory storage in current directory')
     .option('--no-integrations', 'Skip agent and IDE integration files')
     .action(async (options: InitProjectOptions) => {
       const cwd = process.cwd()
       const path = await initProjectMemory(cwd)
-      console.log(`Project memory initialized at: ${path}`)
+      console.log(`Memory initialized at: ${path}`)
 
       if (options.integrations !== false) {
         const { results } = await configureProjectIntegrations(cwd)

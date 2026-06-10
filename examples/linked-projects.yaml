@@ -1,8 +1,0 @@
-projects:
-  - ../project-docs
-  - ../project-site
-
-product-suite:
-  linked_projects:
-    - ../product-docs
-    - ../product-site

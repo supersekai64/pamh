@@ -27,9 +27,16 @@ Contains cross-project knowledge such as identity, preferences, patterns, and de
 
 ### Project Memory
 
-Location: `repo/.ai-memory`
+Location: `.ai-memory` (discovered by walking up the directory tree)
 
 Contains project-specific knowledge such as architecture, current state, tasks, and sessions.
+
+PAMH searches for `.ai-memory/` by walking up the directory tree, similar to how `.git` works. This allows:
+
+- **Shared memory**: Initialize in a parent directory, all subdirectories use it
+- **Isolated memory**: Initialize in a specific subdirectory for project-specific memory
+
+See [docs/concepts.md](concepts.md#memory-discovery) for details.
 
 ## Packages
 
@@ -90,9 +97,9 @@ Global Memory
       +
 Project Memory
       +
-Linked Projects
-      +
 Search Results
       =
 Compiled Context
 ```
+
+Note: `linked-projects.yaml` is deprecated. Use the automatic directory traversal instead by initializing memory in a parent directory.

@@ -18,14 +18,31 @@ memory init global
 Initialize global memory storage in `~/ai-memory/`.
 
 ```bash
-memory init project
+memory init
 ```
 
-Initialize project memory storage in `./.ai-memory/` and auto-configure supported agent/IDE integration files.
+Initialize memory storage in the current directory (`.ai-memory/`) and auto-configure supported agent/IDE integration files. PAMH will search for `.ai-memory/` by walking up the directory tree, similar to how `.git` works.
 
 **Options:**
 
 - `--no-integrations` - Skip agent and IDE integration files
+
+### Status
+
+```bash
+memory status
+```
+
+Show current memory status, including which memory directory is being used and memory counts.
+
+**Example:**
+
+```bash
+memory status
+# Using memory: ~/projects/client-app/.ai-memory/
+# Global memory: ~/ai-memory/
+# Memories: 12 active, 3 proposed, 1 archived, 2 deleted
+```
 
 ### Add Memory
 

@@ -68,7 +68,7 @@ Use it for preferences, broad knowledge, patterns, and reusable decisions.
 
 ## Project Memory
 
-Project memory belongs to one repository.
+Project memory belongs to one repository or workspace.
 
 Default path:
 
@@ -78,22 +78,62 @@ Default path:
 
 Use it for architecture, local decisions, project state, sessions, and tasks.
 
-## Linked Projects
+## Memory Discovery
 
-Linked projects allow a project to pull context from related repositories.
+PAMH searches for `.ai-memory/` by walking up the directory tree, similar to how `.git` works.
 
-Configuration lives in:
+### Shared Memory (Monorepo)
+
+When you initialize memory in a parent directory, all subdirectories automatically use that memory:
 
 ```text
-.ai-memory/linked-projects.yaml
+~/projects/client-app/
+  ├── .ai-memory/              ← Initialize here
+  ├── wordpress-plugin/        ← Uses parent memory
+  └── nextjs-admin/            ← Uses parent memory
 ```
 
-Example:
+```bash
+cd ~/projects/client-app
+memory init
 
-```yaml
-projects:
-  - ../project-docs
-  - ../project-web
+cd wordpress-plugin
+memory add -t decision -c "Use TypeScript"
+# → Stored in ~/projects/client-app/.ai-memory/
+
+cd ../nextjs-admin
+memory list
+# → Shows the same memory
+```
+
+### Isolated Memory
+
+When you initialize memory in a specific subdirectory, that project gets its own isolated memory:
+
+```text
+~/projects/client-app/
+  ├── wordpress-plugin/
+  │   └── .ai-memory/          ← Initialize here for isolated memory
+  └── nextjs-admin/
+      └── .ai-memory/          ← Initialize here for isolated memory
+```
+
+```bash
+cd ~/projects/client-app/wordpress-plugin
+memory init
+# → Creates ~/projects/client-app/wordpress-plugin/.ai-memory/
+# → This project now has its own isolated memory
+```
+
+### Checking Which Memory Is Used
+
+Use `memory status` to see which memory directory is currently active:
+
+```bash
+memory status
+# Using memory: ~/projects/client-app/.ai-memory/
+# Global memory: ~/ai-memory/
+# Memories: 12 active, 3 proposed, 1 archived
 ```
 
 ## Context Compilation

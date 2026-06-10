@@ -1,9 +1,8 @@
 import { writeFile } from 'node:fs/promises'
-import { dirname, isAbsolute, join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { existsSync } from 'node:fs'
 import { listMemories } from './storage.js'
 import { MemoryIndex } from './indexer.js'
-import { loadLinkedProjects } from './linked-projects.js'
 import type { Memory, MemoryScope, MemoryStatus, MemoryType } from './types.js'
 
 export interface CompileContextOptions {
@@ -11,7 +10,6 @@ export interface CompileContextOptions {
   maxTokens?: number
   includeGlobal?: boolean
   includeProject?: boolean
-  includeLinked?: boolean
   includeSearch?: boolean
 }
 
@@ -21,7 +19,6 @@ export interface CompiledContext {
   sources: {
     global: Memory[]
     project: Memory[]
-    linked: Memory[]
     search: Memory[]
   }
 }
@@ -39,14 +36,12 @@ export async function compileContext(
     maxTokens = DEFAULT_MAX_TOKENS,
     includeGlobal = true,
     includeProject = true,
-    includeLinked = true,
     includeSearch = true,
   } = options
 
   const sources = {
     global: [] as Memory[],
     project: [] as Memory[],
-    linked: [] as Memory[],
     search: [] as Memory[],
   }
 
@@ -74,30 +69,6 @@ export async function compileContext(
       if (currentTokens + memoryTokens <= maxTokens) {
         sources.project.push(memory)
         currentTokens += memoryTokens
-      }
-    }
-  }
-
-  if (includeLinked && existsSync(projectBasePath)) {
-    const linkedConfig = await loadLinkedProjects(projectBasePath)
-    const projectRoot = dirname(projectBasePath)
-
-    for (const linkedPath of linkedConfig.projects) {
-      const linkedProjectPath = isAbsolute(linkedPath)
-        ? linkedPath
-        : resolve(projectRoot, linkedPath)
-      const linkedBasePath = join(linkedProjectPath, '.ai-memory')
-      if (existsSync(linkedBasePath)) {
-        const linkedMemories = await listMemories(linkedBasePath)
-        const activeLinked = linkedMemories.filter((m) => m.metadata.status === 'active')
-
-        for (const memory of activeLinked) {
-          const memoryTokens = estimateTokens(memory.content)
-          if (currentTokens + memoryTokens <= maxTokens) {
-            sources.linked.push(memory)
-            currentTokens += memoryTokens
-          }
-        }
       }
     }
   }
@@ -175,14 +146,6 @@ function formatCompiledContext(sources: CompiledContext['sources'], query?: stri
   if (sources.project.length > 0) {
     content += '## Project Memory\n\n'
     for (const memory of sources.project) {
-      content += formatMemory(memory)
-    }
-    content += '\n'
-  }
-
-  if (sources.linked.length > 0) {
-    content += '## Linked Projects Memory\n\n'
-    for (const memory of sources.linked) {
       content += formatMemory(memory)
     }
     content += '\n'
