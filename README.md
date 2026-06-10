@@ -1,8 +1,5 @@
 # Portable AI Memory Hub (PAMH)
 
-![Node.js >=20](https://img.shields.io/badge/node-%3E%3D20-339933?logo=node.js&logoColor=white)
-![pnpm >=9](https://img.shields.io/badge/pnpm-%3E%3D9-F69220?logo=pnpm&logoColor=white)
-
 Open-source platform for persistent, portable, and model-independent AI memory.
 
 PAMH lets you maintain user-controlled memory that works across multiple LLMs, IDEs, agents, and tools.
