@@ -2,6 +2,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { parseMarkdown, serializeMarkdown } from './markdown.js'
 import { MemoryIndex } from './indexer.js'
 import { findMemoryFile, listMemories } from './storage.js'
+import { recordMemoryDebugEvent, summarizeMemoryForDebug } from './memory-debug.js'
 import type { Memory } from './types.js'
 
 // Decay M8 parameters (configurable)
@@ -54,15 +55,32 @@ export function calculateDecayScore(memory: Memory, config: DecayConfig = DEFAUL
  */
 export async function recordAccess(basePath: string, memoryId: string): Promise<Memory | null> {
   const filePath = await findMemoryFile(basePath, memoryId)
-  if (!filePath) return null
+  if (!filePath) {
+    await recordMemoryDebugEvent(basePath, {
+      action: 'memory.access',
+      outcome: 'skipped',
+      memory_id: memoryId,
+      details: { reason: 'not_found' },
+    })
+    return null
+  }
 
   const raw = await readFile(filePath, 'utf-8')
   const memory = parseMarkdown(raw)
 
   if (memory.metadata.status !== 'active') {
+    await recordMemoryDebugEvent(basePath, {
+      action: 'memory.access',
+      outcome: 'skipped',
+      memory_id: memoryId,
+      source: memory.metadata.source,
+      details: { reason: 'not_active', status: memory.metadata.status },
+      before: summarizeMemoryForDebug(memory),
+    })
     return memory
   }
 
+  const before = summarizeMemoryForDebug(memory)
   memory.metadata.access_count = (memory.metadata.access_count ?? 0) + 1
   memory.metadata.last_accessed_at = new Date().toISOString()
   memory.metadata.updated_at = new Date().toISOString()
@@ -73,6 +91,16 @@ export async function recordAccess(basePath: string, memoryId: string): Promise<
   const index = new MemoryIndex(basePath)
   index.indexMemory(memory, filePath)
   index.close()
+
+  await recordMemoryDebugEvent(basePath, {
+    action: 'memory.access',
+    outcome: 'ok',
+    memory_id: memoryId,
+    source: memory.metadata.source,
+    details: { file_path: filePath, access_count: memory.metadata.access_count },
+    before,
+    after: summarizeMemoryForDebug(memory),
+  })
 
   return memory
 }
@@ -100,8 +128,12 @@ export async function forgetSweep(
   const now = Date.now()
 
   for (const memory of memories) {
-    // Skip already deleted or archived
-    if (memory.metadata.status === 'deleted' || memory.metadata.status === 'archived') {
+    // Skip memories that are already outside the active working set.
+    if (
+      memory.metadata.status === 'deleted' ||
+      memory.metadata.status === 'archived' ||
+      memory.metadata.status === 'noise'
+    ) {
       // Check if it's time to hard-delete
       if (memory.metadata.status === 'archived' && memory.metadata.updated_at) {
         const daysSinceArchive =
@@ -137,6 +169,18 @@ export async function forgetSweep(
       result.preserved.push(memory)
     }
   }
+
+  await recordMemoryDebugEvent(basePath, {
+    action: 'memory.decay_sweep',
+    outcome: dryRun ? 'skipped' : 'ok',
+    details: {
+      dryRun,
+      config: normalizedConfig,
+      softDeleted: result.softDeleted.map((memory) => memory.metadata.id),
+      hardDeleted: result.hardDeleted.map((memory) => memory.metadata.id),
+      preserved_count: result.preserved.length,
+    },
+  })
 
   return result
 }

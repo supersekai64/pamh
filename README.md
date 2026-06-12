@@ -182,6 +182,7 @@ memory init global
 - MCP stdio server
 - Local web UI via `memory ui`
 - Three capture modes: manual, assisted (default), and auto
+- Assisted intelligence: recommendations, cleanup, distillation, and Knowledge Graph previews
 
 ## Documentation
 
@@ -190,6 +191,7 @@ memory init global
 - [CLI](docs/cli.md)
 - [MCP](docs/mcp.md)
 - [UI](docs/ui.md)
+- [Intelligence Layer](docs/intelligence.md)
 - [Capture Modes](docs/capture-modes.md)
 - [Security](docs/security.md)
 - [Concepts](docs/concepts.md)

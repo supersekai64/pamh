@@ -1,0 +1,42 @@
+# Claude Instructions
+
+<!-- PAMH:START -->
+## PAMH Memory
+
+Use PAMH as the project memory layer.
+
+PAMH uses **assisted capture mode** by default: when you call `add_memory`, the memory is created with `status: proposed` and requires user approval before becoming active.
+
+**Language requirement**: Always write memory content in English, regardless of the conversation language.
+
+At the start of a task:
+- Search PAMH memory for relevant project context.
+- Use `compile_context` when broader context is useful.
+
+During or after a task:
+- When you make a durable project decision, call `add_memory`.
+- When the tool supports it, prefer `memory_checkpoint` before your final response.
+- When you finish meaningful work, call `add_memory` with a short session summary.
+- When you discover a mistake, constraint, or reusable fact, call `add_memory`.
+- When the user corrects you by saying something should have been remembered, automated, or treated as a rule/preference, immediately capture that durable expectation.
+- After changing code, docs, configuration, or behavior, update relevant documentation in the same pass and checkpoint that documentation status when meaningful.
+- Do not wait for the user to explicitly request memory creation when the information is durable.
+
+Before final response:
+- If meaningful project work happened, run `memory_checkpoint` with session summary, decisions/facts/preferences/mistakes/tasks as appropriate.
+- Include user corrections and durable workflow expectations in the checkpoint.
+- If no MCP checkpoint tool is available, use the CLI fallback: `memory add --project` with the appropriate type and `status: proposed` when supported by the capture mode.
+
+Use these memory types:
+- `decision` for technical decisions.
+- `session` for completed work summaries.
+- `knowledge` for reusable facts.
+- `mistake` for lessons learned.
+- `preference` for user or project preferences.
+- `rule` for durable workflow requirements.
+- `task` for follow-up work.
+
+Use scope `project` by default.
+
+Do not store secrets, API keys, tokens, passwords, private credentials, or transient logs.
+<!-- PAMH:END -->

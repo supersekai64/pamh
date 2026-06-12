@@ -22,11 +22,36 @@ describe('integrations', () => {
     expect(result.results.every((entry) => entry.status === 'created')).toBe(true)
     expect(existsSync(join(tempDir, 'AGENTS.md'))).toBe(true)
     expect(existsSync(join(tempDir, 'CLAUDE.md'))).toBe(true)
+    expect(existsSync(join(tempDir, '.ai-memory', 'auto-capture.yaml'))).toBe(true)
+    expect(existsSync(join(tempDir, '.claude', 'settings.json'))).toBe(true)
     expect(existsSync(join(tempDir, 'opencode.json'))).toBe(true)
     expect(existsSync(join(tempDir, '.mcp.json'))).toBe(true)
+    expect(existsSync(join(tempDir, '.vscode', 'mcp.json'))).toBe(true)
     expect(existsSync(join(tempDir, '.cursor', 'mcp.json'))).toBe(true)
     expect(existsSync(join(tempDir, '.cursor', 'rules', 'pamh.mdc'))).toBe(true)
     expect(existsSync(join(tempDir, '.github', 'copilot-instructions.md'))).toBe(true)
+  })
+
+  it('should configure VS Code MCP server', async () => {
+    await configureProjectIntegrations(tempDir)
+
+    const raw = await readFile(join(tempDir, '.vscode', 'mcp.json'), 'utf-8')
+    const config = JSON.parse(raw)
+
+    expect(config.servers.pamh).toEqual({
+      command: 'memory',
+      args: ['server', 'start'],
+    })
+  })
+
+  it('should configure Claude Code hooks', async () => {
+    await configureProjectIntegrations(tempDir)
+
+    const raw = await readFile(join(tempDir, '.claude', 'settings.json'), 'utf-8')
+    const config = JSON.parse(raw)
+
+    expect(config.hooks.SessionStart[0].hooks[0].command).toContain('memory hook record')
+    expect(config.hooks.Stop[0].hooks[0].command).toContain('session-end')
   })
 
   it('should configure opencode MCP and instructions', async () => {
@@ -69,6 +94,17 @@ describe('integrations', () => {
 
     expect(second).toBe(first)
     expect(second.match(/PAMH:START/g)).toHaveLength(1)
+  })
+
+  it('should instruct agents to checkpoint durable user corrections', async () => {
+    await configureProjectIntegrations(tempDir)
+
+    const agents = await readFile(join(tempDir, 'AGENTS.md'), 'utf-8')
+
+    expect(agents).toContain('Before final response')
+    expect(agents).toContain('user corrects you')
+    expect(agents).toContain('memory_checkpoint')
+    expect(agents).toContain('update relevant documentation')
   })
 
   it('should skip invalid existing JSON configs', async () => {

@@ -19,6 +19,14 @@ By default, the server binds to `127.0.0.1:3939`.
 - Edit content, type, scope, and tags
 - Archive, restore, logically delete, or physically delete memories
 - View local index statistics
+- Review assisted maintenance recommendations
+- Preview and create proposed distilled memories
+- Inspect the Knowledge Graph in a separate tab
+- Inspect evidence IDs for recommendations, graph entities, and graph relations
+
+The neural/concept map and the Knowledge Graph are separate views. The concept
+map shows recurring memory signals and co-occurrence. The Knowledge Graph shows
+explicit entities and typed, evidence-backed relations.
 
 ## Architecture
 

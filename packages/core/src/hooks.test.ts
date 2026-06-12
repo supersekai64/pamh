@@ -2,7 +2,13 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { recordHookEvent, getSessionEvents, getRecentEvents, initProjectMemory } from './index.js'
+import {
+  getRecentEvents,
+  getSessionEvents,
+  initProjectMemory,
+  listMemories,
+  recordHookEvent,
+} from './index.js'
 
 describe('hooks', () => {
   let tempDir: string
@@ -65,6 +71,42 @@ describe('hooks', () => {
     const summary = JSON.parse(summaryRaw)
     expect(summary.session_id).toBe('session-123')
     expect(summary.event_count).toBe(3)
+
+    const memories = await listMemories(basePath)
+    const sessionMemory = memories.find((memory) => memory.metadata.source === 'hook')
+    expect(sessionMemory?.metadata.status).toBe('proposed')
+    expect(sessionMemory?.content).not.toContain('Hello')
+  })
+
+  it('should infer proposed rule memories from explicit user correction prompts', async () => {
+    await recordHookEvent(basePath, {
+      type: 'user-prompt',
+      agent: 'codex',
+      session_id: 'session-456',
+      project_path: tempDir,
+      data: {
+        text: 'je ne vois pas de nouvelle mémoire. normalement on aurait dû avoir une nouvelle mémoire rule qui indique toujours mettre à jour les documentations suite à une modification',
+      },
+    })
+
+    const memories = await listMemories(basePath)
+    const inferredRules = memories.filter(
+      (memory) =>
+        memory.metadata.source === 'hook-inference:codex' && memory.metadata.type === 'rule'
+    )
+
+    expect(inferredRules).toHaveLength(2)
+    expect(inferredRules.every((memory) => memory.metadata.status === 'proposed')).toBe(true)
+    expect(
+      inferredRules.some((memory) =>
+        memory.content.includes('always update the relevant documentation')
+      )
+    ).toBe(true)
+    expect(
+      inferredRules.some((memory) =>
+        memory.content.includes('should have been remembered automatically')
+      )
+    ).toBe(true)
   })
 
   it('should reject unsafe session ids when writing summaries', async () => {

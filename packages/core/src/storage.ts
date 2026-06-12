@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs'
 import { parseMarkdown, serializeMarkdown } from './markdown.js'
 import { generateId } from './id.js'
 import { MemoryIndex, type SearchResult } from './indexer.js'
+import { recordMemoryDebugEvent, summarizeMemoryForDebug } from './memory-debug.js'
 import {
   assertMemoryScope,
   assertMemoryStatus,
@@ -114,6 +115,7 @@ export async function createMemory(basePath: string, input: CreateMemoryInput): 
       access_count: 0,
       last_accessed_at: now,
       supersedes: input.supersedes,
+      source_ids: input.source_ids,
     },
     content: input.content,
   }
@@ -129,15 +131,51 @@ export async function createMemory(basePath: string, input: CreateMemoryInput): 
   index.indexMemory(memory, filePath)
   index.close()
 
+  await recordMemoryDebugEvent(basePath, {
+    action: 'memory.create',
+    outcome: 'ok',
+    memory_id: memory.metadata.id,
+    source: memory.metadata.source,
+    details: {
+      file_path: filePath,
+      type,
+      scope,
+      status,
+      tags: memory.metadata.tags,
+      salience,
+    },
+    after: summarizeMemoryForDebug(memory),
+    content_preview: memory.content,
+  })
+
   return memory
 }
 
 export async function readMemory(basePath: string, id: string): Promise<Memory | null> {
   const filePath = await findMemoryFile(basePath, id)
-  if (!filePath) return null
+  if (!filePath) {
+    await recordMemoryDebugEvent(basePath, {
+      action: 'memory.read',
+      outcome: 'skipped',
+      memory_id: id,
+      details: { reason: 'not_found' },
+    })
+    return null
+  }
 
   const raw = await readFile(filePath, 'utf-8')
-  return parseMarkdown(raw)
+  const memory = parseMarkdown(raw)
+
+  await recordMemoryDebugEvent(basePath, {
+    action: 'memory.read',
+    outcome: 'ok',
+    memory_id: id,
+    source: memory.metadata.source,
+    details: { file_path: filePath, status: memory.metadata.status },
+    after: summarizeMemoryForDebug(memory),
+  })
+
+  return memory
 }
 
 export async function updateMemory(
@@ -146,10 +184,19 @@ export async function updateMemory(
   input: UpdateMemoryInput
 ): Promise<Memory | null> {
   const filePath = await findMemoryFile(basePath, id)
-  if (!filePath) return null
+  if (!filePath) {
+    await recordMemoryDebugEvent(basePath, {
+      action: 'memory.update',
+      outcome: 'skipped',
+      memory_id: id,
+      details: { reason: 'not_found', attempted_fields: Object.keys(input) },
+    })
+    return null
+  }
 
   const raw = await readFile(filePath, 'utf-8')
   const memory = parseMarkdown(raw)
+  const before = summarizeMemoryForDebug(memory)
 
   if (input.content !== undefined) {
     memory.content = input.content
@@ -163,6 +210,12 @@ export async function updateMemory(
   if (input.scope !== undefined) {
     memory.metadata.scope = assertMemoryScope(input.scope)
   }
+  if (input.status !== undefined) {
+    memory.metadata.status = assertMemoryStatus(input.status)
+  }
+  if (input.source_ids !== undefined) {
+    memory.metadata.source_ids = input.source_ids
+  }
 
   memory.metadata.updated_at = new Date().toISOString()
 
@@ -171,6 +224,22 @@ export async function updateMemory(
   const index = new MemoryIndex(basePath)
   index.indexMemory(memory, filePath)
   index.close()
+
+  await recordMemoryDebugEvent(basePath, {
+    action: 'memory.update',
+    outcome: 'ok',
+    memory_id: id,
+    source: memory.metadata.source,
+    details: {
+      file_path: filePath,
+      changed_fields: Object.keys(input).filter(
+        (key) => input[key as keyof UpdateMemoryInput] !== undefined
+      ),
+    },
+    before,
+    after: summarizeMemoryForDebug(memory),
+    content_preview: input.content,
+  })
 
   return memory
 }
@@ -185,20 +254,40 @@ export async function deleteMemory(
   options: DeleteMemoryOptions = {}
 ): Promise<boolean> {
   const filePath = await findMemoryFile(basePath, id)
-  if (!filePath) return false
+  if (!filePath) {
+    await recordMemoryDebugEvent(basePath, {
+      action: options.physical ? 'memory.delete.physical' : 'memory.delete',
+      outcome: 'skipped',
+      memory_id: id,
+      details: { reason: 'not_found' },
+    })
+    return false
+  }
 
   if (options.physical) {
+    const raw = await readFile(filePath, 'utf-8')
+    const memory = parseMarkdown(raw)
     await rm(filePath, { force: true })
 
     const index = new MemoryIndex(basePath)
     index.removeMemory(id, 'physical deletion')
     index.close()
 
+    await recordMemoryDebugEvent(basePath, {
+      action: 'memory.delete.physical',
+      outcome: 'ok',
+      memory_id: id,
+      source: memory.metadata.source,
+      details: { file_path: filePath },
+      before: summarizeMemoryForDebug(memory),
+    })
+
     return true
   }
 
   const raw = await readFile(filePath, 'utf-8')
   const memory = parseMarkdown(raw)
+  const before = summarizeMemoryForDebug(memory)
 
   memory.metadata.status = 'deleted'
   memory.metadata.updated_at = new Date().toISOString()
@@ -209,20 +298,47 @@ export async function deleteMemory(
   index.indexMemory(memory, filePath)
   index.close()
 
+  await recordMemoryDebugEvent(basePath, {
+    action: 'memory.delete',
+    outcome: 'ok',
+    memory_id: id,
+    source: memory.metadata.source,
+    details: { file_path: filePath },
+    before,
+    after: summarizeMemoryForDebug(memory),
+  })
+
   return true
 }
 
 export async function archiveMemory(basePath: string, id: string): Promise<boolean> {
   const filePath = await findMemoryFile(basePath, id)
-  if (!filePath) return false
+  if (!filePath) {
+    await recordMemoryDebugEvent(basePath, {
+      action: 'memory.archive',
+      outcome: 'skipped',
+      memory_id: id,
+      details: { reason: 'not_found' },
+    })
+    return false
+  }
 
   const raw = await readFile(filePath, 'utf-8')
   const memory = parseMarkdown(raw)
 
   if (memory.metadata.status === 'archived') {
+    await recordMemoryDebugEvent(basePath, {
+      action: 'memory.archive',
+      outcome: 'skipped',
+      memory_id: id,
+      source: memory.metadata.source,
+      details: { reason: 'already_archived', file_path: filePath },
+      before: summarizeMemoryForDebug(memory),
+    })
     return false
   }
 
+  const before = summarizeMemoryForDebug(memory)
   memory.metadata.status = 'archived'
   memory.metadata.updated_at = new Date().toISOString()
 
@@ -231,6 +347,16 @@ export async function archiveMemory(basePath: string, id: string): Promise<boole
   const index = new MemoryIndex(basePath)
   index.indexMemory(memory, filePath)
   index.close()
+
+  await recordMemoryDebugEvent(basePath, {
+    action: 'memory.archive',
+    outcome: 'ok',
+    memory_id: id,
+    source: memory.metadata.source,
+    details: { file_path: filePath },
+    before,
+    after: summarizeMemoryForDebug(memory),
+  })
 
   return true
 }
@@ -312,20 +438,59 @@ export async function findMemoryFile(basePath: string, id: string): Promise<stri
 }
 
 export async function indexAllMemories(basePath: string): Promise<number> {
-  const memories = await listMemories(basePath)
   const index = new MemoryIndex(basePath)
   index.clear()
 
   let count = 0
-  for (const memory of memories) {
-    const filePath = await findMemoryFile(basePath, memory.metadata.id)
-    if (filePath) {
-      index.indexMemory(memory, filePath)
-      count++
+
+  async function scanDir(dir: string) {
+    if (!existsSync(dir)) return
+
+    let entries: string[]
+    try {
+      entries = await readdir(dir)
+    } catch {
+      return
+    }
+
+    for (const entry of entries) {
+      const fullPath = join(dir, entry)
+
+      let stats
+      try {
+        stats = await stat(fullPath)
+      } catch {
+        continue
+      }
+
+      if (stats.isDirectory()) {
+        await scanDir(fullPath)
+      } else if (entry.endsWith('.md')) {
+        try {
+          const raw = await readFile(fullPath, 'utf-8')
+          if (!raw.trim()) continue
+
+          const memory = parseMarkdown(raw)
+          if (memory.metadata.id) {
+            index.indexMemory(memory, fullPath)
+            count++
+          }
+        } catch {
+          // Skip invalid or concurrently changed files.
+        }
+      }
     }
   }
 
+  await scanDir(basePath)
   index.close()
+
+  await recordMemoryDebugEvent(basePath, {
+    action: 'memory.index_all',
+    outcome: 'ok',
+    details: { indexed_count: count },
+  })
+
   return count
 }
 

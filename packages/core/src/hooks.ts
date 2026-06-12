@@ -3,6 +3,9 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { mkdir } from 'node:fs/promises'
 import { generateId } from './id.js'
+import { loadAutoCaptureConfig } from './auto-capture.js'
+import { createMemory, listMemories } from './storage.js'
+import type { MemoryType } from './types.js'
 
 // Lifecycle hook event types
 export type HookEventType =
@@ -56,12 +59,119 @@ export async function recordHookEvent(
   const logFile = join(observationsDir, `${timestamp.split('T')[0]}.jsonl`)
   await writeFile(logFile, JSON.stringify(fullEvent) + '\n', { flag: 'a', encoding: 'utf-8' })
 
+  await proposeDurableMemoryFromHookEvent(basePath, fullEvent)
+
   // If it's a session-end event, create a session summary
   if (event.type === 'session-end' && event.session_id) {
     await createSessionSummary(basePath, event.session_id)
   }
 
   return fullEvent
+}
+
+interface HookMemoryProposal {
+  type: MemoryType
+  content: string
+  tags: string[]
+  salience: number
+}
+
+async function proposeDurableMemoryFromHookEvent(
+  basePath: string,
+  event: HookEvent
+): Promise<void> {
+  if (event.type !== 'user-prompt') return
+
+  const text = getPromptText(event.data)
+  if (!text) return
+
+  const proposals = inferDurableMemoriesFromPrompt(text)
+  if (!proposals.length) return
+
+  const config = await loadAutoCaptureConfig(basePath)
+  if (config.mode === 'manual') return
+
+  const existing = await listMemories(basePath)
+  const status = config.mode === 'auto' ? 'active' : 'proposed'
+  const source = event.agent ? `hook-inference:${event.agent}` : 'hook-inference'
+
+  for (const proposal of proposals) {
+    const duplicate = existing.some(
+      (memory) =>
+        memory.metadata.source.startsWith('hook-inference') &&
+        normalizeText(memory.content) === normalizeText(proposal.content)
+    )
+    if (duplicate) continue
+
+    await createMemory(basePath, {
+      type: proposal.type,
+      scope: 'project',
+      status,
+      source,
+      tags: ['hook-inferred', ...proposal.tags],
+      salience: proposal.salience,
+      content: proposal.content,
+    })
+  }
+}
+
+function getPromptText(data: Record<string, unknown>): string {
+  const candidates = [
+    data.text,
+    data.prompt,
+    data.user_prompt,
+    data.message,
+    data.content,
+    data.transcript,
+  ]
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) return candidate
+  }
+
+  return ''
+}
+
+function inferDurableMemoriesFromPrompt(text: string): HookMemoryProposal[] {
+  const normalized = normalizeText(text)
+  const proposals: HookMemoryProposal[] = []
+  const hasInstructionLanguage =
+    /\b(always|must|should|rule|automatically|automatic)\b/.test(normalized) ||
+    /\b(toujours|regle|règle|automatique|normalement|aurait du|aurait dû)\b/.test(normalized)
+
+  if (!hasInstructionLanguage) return []
+
+  if (/\b(doc|docs|documentation|documentations)\b/.test(normalized)) {
+    proposals.push({
+      type: 'rule',
+      tags: ['documentation', 'workflow'],
+      salience: 0.78,
+      content:
+        'After implementing project changes, always update the relevant documentation in the same pass and report documentation status in the final response.',
+    })
+  }
+
+  if (/\b(memory|memories|memoire|mémoire|memoriser|mémoriser)\b/.test(normalized)) {
+    proposals.push({
+      type: 'rule',
+      tags: ['memory-capture', 'workflow'],
+      salience: 0.82,
+      content:
+        'When the user states that a durable rule, preference, or workflow expectation should have been remembered automatically, capture it as a proposed project memory without waiting for another explicit request.',
+    })
+  }
+
+  return proposals
+}
+
+function normalizeText(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 /**
@@ -96,6 +206,34 @@ async function createSessionSummary(basePath: string, sessionId: string): Promis
 
   const summaryFile = join(sessionsDir, `${sessionId}.json`)
   await writeFile(summaryFile, JSON.stringify(summary, null, 2), 'utf-8')
+
+  if (!isMeaningfulSession(events)) return
+
+  const config = await loadAutoCaptureConfig(basePath)
+  if (config.mode === 'manual') return
+
+  await createMemory(basePath, {
+    type: 'session',
+    scope: 'project',
+    status: config.mode === 'auto' ? 'active' : 'proposed',
+    source: summary.agent ? `hook:${summary.agent}` : 'hook',
+    tags: ['hook-session', optionalSlug(summary.agent), `session-${slug(sessionId)}`].filter(
+      (tag): tag is string => Boolean(tag)
+    ),
+    salience: 0.58,
+    content: [
+      `Session ${sessionId} produced meaningful project activity.`,
+      '',
+      `Agent: ${summary.agent ?? 'unknown'}`,
+      `Events: ${summary.event_count}`,
+      `Prompts: ${summary.prompts}`,
+      `Tool calls: ${summary.tool_calls}`,
+      `Started: ${summary.started_at ?? 'unknown'}`,
+      `Ended: ${summary.ended_at ?? 'unknown'}`,
+      '',
+      'This memory was generated from lifecycle event counts only; raw prompt transcripts are kept out of durable memory.',
+    ].join('\n'),
+  })
 }
 
 /**
@@ -115,6 +253,24 @@ function generateRuleBasedSummary(events: HookEvent[]): string {
   }
 
   return summary
+}
+
+function isMeaningfulSession(events: HookEvent[]): boolean {
+  const prompts = events.filter((event) => event.type === 'user-prompt').length
+  const toolCalls = events.filter((event) => event.type === 'post-tool-use').length
+  return prompts > 0 || toolCalls > 1 || events.length >= 4
+}
+
+function optionalSlug(value: string | undefined): string | undefined {
+  const normalized = value ? slug(value) : ''
+  return normalized ? `agent-${normalized}` : undefined
+}
+
+function slug(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
 }
 
 /**

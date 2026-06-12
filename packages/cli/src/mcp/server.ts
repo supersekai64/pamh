@@ -12,6 +12,7 @@ import {
   handoffAcceptTool,
   handoffBeginTool,
   listProjects,
+  memoryCheckpoint,
   recordHookEventTool,
   removeMemory,
   searchMemory,
@@ -81,6 +82,28 @@ export function createPamhMcpServer(context: McpToolContext) {
       },
     },
     async (input) => jsonResult(await addMemory(input, context))
+  )
+
+  server.registerTool(
+    'memory_checkpoint',
+    {
+      title: 'Memory Checkpoint',
+      description:
+        'Submit a structured checkpoint of durable session learnings. PAMH creates proposed or active memories based on capture mode.',
+      inputSchema: {
+        summary: z.string().optional(),
+        decisions: z.array(z.string()).optional(),
+        facts: z.array(z.string()).optional(),
+        preferences: z.array(z.string()).optional(),
+        mistakes: z.array(z.string()).optional(),
+        tasks: z.array(z.string()).optional(),
+        agent: z.string().optional(),
+        model: z.string().optional(),
+        session_id: z.string().optional(),
+        scope: z.enum(['global', 'project']).default('project'),
+      },
+    },
+    async (input) => jsonResult(await memoryCheckpoint(input, context))
   )
 
   server.registerTool(

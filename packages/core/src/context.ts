@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { existsSync } from 'node:fs'
 import { listMemories } from './storage.js'
 import { MemoryIndex } from './indexer.js'
+import { recordMemoryDebugEvent } from './memory-debug.js'
 import type { Memory, MemoryScope, MemoryStatus, MemoryType } from './types.js'
 
 export interface CompileContextOptions {
@@ -107,6 +108,29 @@ export async function compileContext(
 
   const content = formatCompiledContext(sources, query)
 
+  await recordMemoryDebugEvent(projectBasePath, {
+    action: 'context.compile',
+    outcome: 'ok',
+    details: {
+      query,
+      maxTokens,
+      includeGlobal,
+      includeProject,
+      includeSearch,
+      tokenCount: currentTokens,
+      source_counts: {
+        global: sources.global.length,
+        project: sources.project.length,
+        search: sources.search.length,
+      },
+      source_ids: {
+        global: sources.global.map((memory) => memory.metadata.id),
+        project: sources.project.map((memory) => memory.metadata.id),
+        search: sources.search.map((memory) => memory.metadata.id),
+      },
+    },
+  })
+
   return {
     content,
     tokenCount: currentTokens,
@@ -120,6 +144,21 @@ export async function writeCompiledContext(
 ): Promise<string> {
   const outputPath = join(projectBasePath, 'compiled-context.md')
   await writeFile(outputPath, compiled.content, 'utf-8')
+
+  await recordMemoryDebugEvent(projectBasePath, {
+    action: 'context.write',
+    outcome: 'ok',
+    details: {
+      outputPath,
+      tokenCount: compiled.tokenCount,
+      source_counts: {
+        global: compiled.sources.global.length,
+        project: compiled.sources.project.length,
+        search: compiled.sources.search.length,
+      },
+    },
+  })
+
   return outputPath
 }
 

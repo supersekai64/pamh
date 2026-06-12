@@ -17,6 +17,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "seed:neural-map": "pnpm --filter pamh-core build && node scripts/seed-neural-map.mjs",
     "release:check": "pnpm test:coverage && pnpm lint && pnpm build && pnpm format:check"
   },
   "devDependencies": {

@@ -2,12 +2,13 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { initProjectMemory } from 'pamh-core'
+import { initProjectMemory, saveAutoCaptureConfig } from 'pamh-core'
 import {
   addMemory,
   compileMemoryContext,
   editMemory,
   getMemory,
+  memoryCheckpoint,
   removeMemory,
   searchMemory,
   type McpToolContext,
@@ -84,5 +85,48 @@ describe('MCP tools', () => {
     const compiled = await compileMemoryContext({ query: 'architecture' }, context)
     expect(compiled.content).toContain('Compiled Context')
     expect(compiled.content).toContain('Project architecture uses TypeScript packages')
+  })
+
+  it('should create proposed memories from a checkpoint in assisted mode', async () => {
+    const result = await memoryCheckpoint(
+      {
+        summary: 'Implemented cross-tool memory capture planning.',
+        decisions: ['Use assisted capture as the default mode.'],
+        facts: ['PAMH exposes memory_checkpoint through MCP.'],
+        agent: 'codex',
+        model: 'gpt-5',
+        scope: 'project',
+      },
+      context
+    )
+
+    expect(result.mode).toBe('assisted')
+    expect(result.status).toBe('proposed')
+    expect(result.created).toHaveLength(3)
+    expect(result.created.map((memory) => memory.metadata.status)).toEqual([
+      'proposed',
+      'proposed',
+      'proposed',
+    ])
+    expect(result.created[0].metadata.tags).toContain('checkpoint')
+    expect(result.created[0].metadata.tags).toContain('agent-codex')
+  })
+
+  it('should record checkpoint observations without creating memories in manual mode', async () => {
+    await saveAutoCaptureConfig(projectMemoryPath, { mode: 'manual' })
+
+    const result = await memoryCheckpoint(
+      {
+        summary: 'This should stay an observation only.',
+        decisions: ['Do not create memory in manual mode.'],
+        agent: 'codex',
+        scope: 'project',
+      },
+      context
+    )
+
+    expect(result.mode).toBe('manual')
+    expect(result.status).toBe('skipped')
+    expect(result.created).toHaveLength(0)
   })
 })

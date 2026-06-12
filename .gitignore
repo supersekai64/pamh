@@ -10,5 +10,12 @@ secrets/
 .DS_Store
 coverage/
 .turbo/
-SPEC.md
-PLAN.md
+.ai-memory
+.claude
+.cursor
+.github
+.vscode
+AGENTS.md
+CLAUDE.md
+opencode.json
+PAMH_INTELLIGENCE_PLAN.md

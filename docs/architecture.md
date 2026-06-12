@@ -42,7 +42,9 @@ See [docs/concepts.md](concepts.md#memory-discovery) for details.
 
 ### pamh-core
 
-Responsible for storage, indexing, search, import, export, context compilation, and semantic search. It has no CLI or MCP dependency.
+Responsible for storage, indexing, search, import, export, context compilation,
+semantic search, lifecycle hook capture, and deterministic intelligence
+analysis. It has no CLI or MCP dependency.
 
 ### pamh-cli
 
@@ -97,3 +99,30 @@ Search Results
       =
 Compiled Context
 ```
+
+## Intelligence Layer
+
+```text
+Observations
+      +
+Markdown Memories
+      |
+      v
+Deterministic Analysis
+      |
+      +--> Recommendations
+      +--> Distillation Proposals
+      +--> Cleanup Proposals
+      +--> Knowledge Graph Preview
+```
+
+Recommendations are separate review objects. They do not mutate memories until a
+user or agent applies one explicitly.
+
+Distilled memories preserve evidence with `source_ids`. Knowledge Graph
+relations preserve evidence with `evidence_ids`. This keeps every synthetic
+memory and generated relation inspectable.
+
+Hook events are observations. In assisted mode, a meaningful session-end hook can
+create a proposed `session` memory, but raw prompt transcripts are not stored as
+durable memory.

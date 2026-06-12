@@ -19,7 +19,12 @@ import {
   getOpenHandoff,
   forgetSweep,
   recordHookEvent,
+  analyzeDistillation,
+  buildKnowledgeGraph,
+  generateRecommendations,
+  applyRecommendation,
   type MemoryStatus,
+  type Memory,
   type DecayConfig,
   type HookEventType,
 } from 'pamh-core'
@@ -52,6 +57,19 @@ export interface AddMemoryInput {
   salience?: number // Importance score (0-1, default: 0.5)
 }
 
+export interface MemoryCheckpointInput {
+  summary?: string
+  decisions?: string[]
+  facts?: string[]
+  preferences?: string[]
+  mistakes?: string[]
+  tasks?: string[]
+  agent?: string
+  model?: string
+  session_id?: string
+  scope?: 'global' | 'project'
+}
+
 export interface EditMemoryInput {
   id: string
   content?: string
@@ -72,6 +90,15 @@ export interface CompileContextInput {
 
 export interface ListProjectsInput {
   includeCurrent?: boolean
+}
+
+export interface IntelligencePreviewInput {
+  scope?: 'global' | 'project'
+}
+
+export interface ApplyRecommendationInput {
+  id: string
+  scope?: 'global' | 'project'
 }
 
 export function resolveMemoryPath(
@@ -128,6 +155,64 @@ export async function addMemory(input: AddMemoryInput, context: McpToolContext) 
   })
 }
 
+export async function memoryCheckpoint(input: MemoryCheckpointInput, context: McpToolContext) {
+  const scope = input.scope ?? 'project'
+  const basePath = resolveMemoryPath(context, scope)
+  const config = await loadAutoCaptureConfig(basePath)
+
+  await recordHookEvent(basePath, {
+    type: 'other',
+    agent: input.agent,
+    session_id: input.session_id,
+    project_path: context.cwd,
+    data: {
+      action: 'memory_checkpoint',
+      model: input.model,
+      counts: {
+        summary: input.summary ? 1 : 0,
+        decisions: input.decisions?.length ?? 0,
+        facts: input.facts?.length ?? 0,
+        preferences: input.preferences?.length ?? 0,
+        mistakes: input.mistakes?.length ?? 0,
+        tasks: input.tasks?.length ?? 0,
+      },
+    },
+  })
+
+  if (config.mode === 'manual') {
+    return {
+      mode: config.mode,
+      status: 'skipped',
+      reason: 'capture mode is manual',
+      created: [],
+    }
+  }
+
+  const status: MemoryStatus = config.mode === 'auto' ? 'active' : 'proposed'
+  const source = input.agent ? `mcp-checkpoint:${input.agent}` : 'mcp-checkpoint'
+  const created: Memory[] = []
+
+  for (const item of buildCheckpointItems(input)) {
+    created.push(
+      await createMemory(basePath, {
+        type: assertMemoryType(item.type),
+        scope: assertMemoryScope(scope),
+        content: item.content,
+        tags: buildCheckpointTags(item.tag, input),
+        source,
+        status,
+        salience: item.salience,
+      })
+    )
+  }
+
+  return {
+    mode: config.mode,
+    status,
+    created,
+  }
+}
+
 export async function editMemory(input: EditMemoryInput, context: McpToolContext) {
   const basePath = resolveMemoryPath(context, input.scope)
 
@@ -157,6 +242,93 @@ export async function compileMemoryContext(input: CompileContextInput, context: 
       maxTokens: input.maxTokens,
     }
   )
+}
+
+export async function recommendMemoryMaintenance(
+  input: IntelligencePreviewInput,
+  context: McpToolContext
+) {
+  return generateRecommendations(resolveMemoryPath(context, input.scope))
+}
+
+export async function previewMemoryDistillation(
+  input: IntelligencePreviewInput,
+  context: McpToolContext
+) {
+  return analyzeDistillation(resolveMemoryPath(context, input.scope))
+}
+
+export async function previewKnowledgeGraph(
+  input: IntelligencePreviewInput,
+  context: McpToolContext
+) {
+  return buildKnowledgeGraph(resolveMemoryPath(context, input.scope))
+}
+
+export async function applyMemoryRecommendation(
+  input: ApplyRecommendationInput,
+  context: McpToolContext
+) {
+  return applyRecommendation(resolveMemoryPath(context, input.scope), input.id)
+}
+
+interface CheckpointItem {
+  type: string
+  tag: string
+  content: string
+  salience: number
+}
+
+function buildCheckpointItems(input: MemoryCheckpointInput): CheckpointItem[] {
+  return [
+    ...singleCheckpointItem(input.summary, 'session', 'session', 0.66),
+    ...checkpointItems(input.decisions, 'decision', 'decision', 0.82),
+    ...checkpointItems(input.facts, 'knowledge', 'fact', 0.68),
+    ...checkpointItems(input.preferences, 'preference', 'preference', 0.72),
+    ...checkpointItems(input.mistakes, 'mistake', 'mistake', 0.74),
+    ...checkpointItems(input.tasks, 'task', 'task', 0.58),
+  ]
+}
+
+function singleCheckpointItem(
+  value: string | undefined,
+  type: string,
+  tag: string,
+  salience: number
+): CheckpointItem[] {
+  const content = value?.trim()
+  return content ? [{ type, tag, content, salience }] : []
+}
+
+function checkpointItems(
+  values: string[] | undefined,
+  type: string,
+  tag: string,
+  salience: number
+): CheckpointItem[] {
+  return (values ?? [])
+    .map((content) => content.trim())
+    .filter(Boolean)
+    .map((content) => ({ type, tag, content, salience }))
+}
+
+function buildCheckpointTags(tag: string, input: MemoryCheckpointInput): string[] {
+  return [
+    'checkpoint',
+    tag,
+    optionalTag('agent', input.agent),
+    optionalTag('model', input.model),
+  ].filter((value): value is string => Boolean(value))
+}
+
+function optionalTag(prefix: string, value: string | undefined): string | undefined {
+  const normalized = value
+    ?.trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+
+  return normalized ? `${prefix}-${normalized}` : undefined
 }
 
 // Supersession tools

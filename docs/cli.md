@@ -427,6 +427,50 @@ Run a forget sweep. Memories below the decay threshold are soft-deleted, while o
 memory decay sweep --project --dry-run
 ```
 
+### Intelligence
+
+```bash
+memory intelligence recommend [options]
+memory intelligence list [options]
+memory intelligence cleanup [options]
+memory intelligence distill [options]
+memory intelligence graph [options]
+memory intelligence seed-eval [options]
+```
+
+Analyze memory quality and produce reviewable maintenance proposals.
+
+**Common options:**
+
+- `--project` - Use project memory instead of global
+- `--json` - Print JSON output
+
+**Recommendation actions:**
+
+```bash
+memory intelligence apply <id> [options]
+memory intelligence reject <id> [options]
+memory intelligence defer <id> [options]
+```
+
+`apply` accepts `--confirm-physical-delete` for recommendations that explicitly
+request physical deletion.
+
+**Examples:**
+
+```bash
+memory intelligence recommend --project
+memory intelligence cleanup --project
+memory intelligence distill --project
+memory intelligence distill --project --apply
+memory intelligence graph --project --json
+memory intelligence seed-eval --project
+```
+
+The intelligence layer keeps recommendations separate from memory mutations.
+Distillation creates proposed memories by default and preserves source evidence
+IDs. See `docs/intelligence.md` for the full model.
+
 ### Server
 
 ```bash
@@ -436,6 +480,35 @@ memory server start
 Start the PAMH MCP server over stdio. This command is intended to be launched by MCP-compatible clients such as Claude Code, OpenCode, Cursor, Continue.dev, or other agent runtimes.
 
 See `docs/mcp.md` for integration details.
+
+### Hooks
+
+```bash
+memory hook record <type> [options]
+```
+
+Record an agent lifecycle event for assisted capture workflows. This is intended
+for tools that can run shell hooks even when they do not call MCP directly.
+
+**Options:**
+
+- `--project` - Use project memory instead of global
+- `--agent <agent>` - Agent or tool name
+- `--model <model>` - Model name when known
+- `--session-id <sessionId>` - Agent session identifier
+- `--data <json>` - Additional event data as a JSON object
+
+When `--data` is omitted, `memory hook record` also accepts JSON or plain text
+from stdin. This lets lifecycle hook systems pass the current prompt to PAMH
+without shell-escaping it.
+
+**Examples:**
+
+```bash
+memory hook record session-start --project --agent claude-code
+memory hook record session-end --project --agent codex --model gpt-5
+echo '{"text":"Always update docs after code changes"}' | memory hook record user-prompt --project --agent local-hook
+```
 
 ### Local UI
 

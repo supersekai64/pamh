@@ -1,0 +1,11 @@
+{
+  "servers": {
+    "pamh": {
+      "command": "memory",
+      "args": [
+        "server",
+        "start"
+      ]
+    }
+  }
+}

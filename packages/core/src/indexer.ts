@@ -280,6 +280,15 @@ export class MemoryIndex {
     const deletedMemories = this.db
       .prepare("SELECT COUNT(*) as count FROM memories WHERE status = 'deleted'")
       .get() as CountRow
+    const archivedMemories = this.db
+      .prepare("SELECT COUNT(*) as count FROM memories WHERE status = 'archived'")
+      .get() as CountRow
+    const proposedMemories = this.db
+      .prepare("SELECT COUNT(*) as count FROM memories WHERE status = 'proposed'")
+      .get() as CountRow
+    const noiseMemories = this.db
+      .prepare("SELECT COUNT(*) as count FROM memories WHERE status = 'noise'")
+      .get() as CountRow
 
     const byType = this.db
       .prepare('SELECT type, COUNT(*) as count FROM memories GROUP BY type')
@@ -295,6 +304,9 @@ export class MemoryIndex {
       total: totalMemories.count,
       active: activeMemories.count,
       deleted: deletedMemories.count,
+      archived: archivedMemories.count,
+      proposed: proposedMemories.count,
+      noise: noiseMemories.count,
       byType: byType.reduce(
         (acc: Record<string, number>, row) => (row.type ? { ...acc, [row.type]: row.count } : acc),
         {}
@@ -397,6 +409,9 @@ export interface IndexStats {
   total: number
   active: number
   deleted: number
+  archived: number
+  proposed: number
+  noise: number
   byType: Record<string, number>
   byScope: Record<string, number>
   tags: Record<string, number>

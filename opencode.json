@@ -1,0 +1,17 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "AGENTS.md"
+  ],
+  "mcp": {
+    "pamh": {
+      "type": "local",
+      "command": [
+        "memory",
+        "server",
+        "start"
+      ],
+      "enabled": true
+    }
+  }
+}

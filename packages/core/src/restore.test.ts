@@ -3,7 +3,13 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { restoreMemory } from './restore.js'
-import { createMemory, deleteMemory, readMemory, initProjectMemory } from './storage.js'
+import {
+  archiveMemory,
+  createMemory,
+  deleteMemory,
+  readMemory,
+  initProjectMemory,
+} from './storage.js'
 import { MemoryIndex } from './indexer.js'
 
 describe('restore', () => {
@@ -42,6 +48,40 @@ describe('restore', () => {
     index.close()
 
     expect(results.some((result) => result.id === memory.metadata.id)).toBe(true)
+  })
+
+  it('should restore an archived memory', async () => {
+    const memory = await createMemory(basePath, {
+      type: 'knowledge',
+      scope: 'project',
+      content: 'Archived content',
+    })
+
+    await archiveMemory(basePath, memory.metadata.id)
+
+    const archived = await readMemory(basePath, memory.metadata.id)
+    expect(archived!.metadata.status).toBe('archived')
+
+    const restored = await restoreMemory(basePath, memory.metadata.id)
+    expect(restored).toBe(true)
+
+    const active = await readMemory(basePath, memory.metadata.id)
+    expect(active!.metadata.status).toBe('active')
+  })
+
+  it('should restore a noise memory', async () => {
+    const memory = await createMemory(basePath, {
+      type: 'knowledge',
+      scope: 'project',
+      status: 'noise',
+      content: 'Noise content',
+    })
+
+    const restored = await restoreMemory(basePath, memory.metadata.id)
+    expect(restored).toBe(true)
+
+    const active = await readMemory(basePath, memory.metadata.id)
+    expect(active!.metadata.status).toBe('active')
   })
 
   it('should return false for non-existent memory', async () => {

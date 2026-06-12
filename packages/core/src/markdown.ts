@@ -21,6 +21,9 @@ export function parseMarkdown(raw: string): Memory {
     source: data.source ?? 'manual',
     supersedes: data.supersedes ? String(data.supersedes) : undefined,
     superseded_by: data.superseded_by ? String(data.superseded_by) : undefined,
+    source_ids: Array.isArray(data.source_ids)
+      ? data.source_ids.map((item) => String(item)).filter(Boolean)
+      : undefined,
     salience: parseOptionalNumber(data.salience, (value) => value >= 0 && value <= 1),
     access_count: parseOptionalNumber(
       data.access_count,
@@ -47,6 +50,7 @@ export function serializeMarkdown(memory: Memory): string {
     source: memory.metadata.source,
     supersedes: memory.metadata.supersedes,
     superseded_by: memory.metadata.superseded_by,
+    source_ids: memory.metadata.source_ids,
     salience: memory.metadata.salience,
     access_count: memory.metadata.access_count,
     last_accessed_at: memory.metadata.last_accessed_at,

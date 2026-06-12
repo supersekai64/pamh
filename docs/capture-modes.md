@@ -76,6 +76,28 @@ memory reject mem_xyz789
 
 In the UI, proposed memories show with "Approve" and "Reject" buttons instead of the usual edit actions.
 
+### Hook-Based Inference
+
+Tools that support lifecycle hooks can call:
+
+```bash
+memory hook record user-prompt --project --agent <agent>
+```
+
+If the tool sends prompt data to stdin or `--data`, PAMH records the raw hook
+event as an observation and may infer a concise proposed memory for explicit
+durable corrections. For example, if the user says a rule should have been
+remembered automatically, PAMH can create a proposed `rule` memory without
+waiting for a separate manual `memory add`.
+
+This inference is intentionally narrow:
+
+- It respects capture mode (`manual` creates no memory, `assisted` creates
+  `proposed`, `auto` creates `active`).
+- It does not store raw prompt transcripts as durable memory.
+- It only emits compact English memories for obvious workflow/documentation or
+  memory-capture expectations.
+
 ## Auto Mode
 
 In auto mode, the agent creates memories directly with `status: active` based on configured rules.

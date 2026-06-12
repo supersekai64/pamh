@@ -28,6 +28,9 @@ import { registerStatusCommand } from './commands/status.js'
 import { registerHandoffCommand } from './commands/handoff.js'
 import { registerDecayCommand } from './commands/decay.js'
 import { registerSupersedeCommand } from './commands/supersede.js'
+import { registerDebugCommand } from './commands/debug.js'
+import { registerHookCommand } from './commands/hook.js'
+import { registerIntelligenceCommand } from './commands/intelligence.js'
 
 const program = new Command()
 
@@ -59,5 +62,8 @@ registerStatusCommand(program)
 registerHandoffCommand(program)
 registerDecayCommand(program)
 registerSupersedeCommand(program)
+registerDebugCommand(program)
+registerHookCommand(program)
+registerIntelligenceCommand(program)
 
 program.parse()

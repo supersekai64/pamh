@@ -32,7 +32,7 @@ export function isMemoryScope(value: unknown): value is MemoryScope {
   return typeof value === 'string' && MEMORY_SCOPES.includes(value as MemoryScope)
 }
 
-export const MEMORY_STATUSES = ['active', 'deleted', 'archived', 'proposed'] as const
+export const MEMORY_STATUSES = ['active', 'deleted', 'archived', 'proposed', 'noise'] as const
 
 export type MemoryStatus = (typeof MEMORY_STATUSES)[number]
 
@@ -89,6 +89,8 @@ export interface MemoryMetadata {
   // Supersession chain (conflict management)
   supersedes?: string // ID of the memory this one replaces
   superseded_by?: string // ID of the memory that replaced this one
+  // Evidence model for distillation, recommendations, and graph relations.
+  source_ids?: string[] // IDs of memories used as evidence
   // Decay M8 (intelligent forgetting)
   salience?: number // Base importance score (0-1)
   access_count?: number // Number of times accessed
@@ -109,6 +111,7 @@ export interface CreateMemoryInput {
   status?: MemoryStatus
   salience?: number // Base importance score (0-1, default: 0.5)
   supersedes?: string // ID of the memory this one replaces
+  source_ids?: string[] // IDs of memories used as evidence
 }
 
 export interface UpdateMemoryInput {
@@ -116,6 +119,8 @@ export interface UpdateMemoryInput {
   tags?: string[]
   type?: MemoryType
   scope?: MemoryScope
+  status?: MemoryStatus
+  source_ids?: string[]
 }
 
 // Handoff types (cross-agent context transfer)

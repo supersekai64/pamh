@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { initAutoCaptureConfig } from './auto-capture.js'
 
 export interface IntegrationResult {
   path: string
@@ -30,14 +31,25 @@ At the start of a task:
 
 During or after a task:
 - When you make a durable project decision, call \`add_memory\`.
+- When the tool supports it, prefer \`memory_checkpoint\` before your final response.
 - When you finish meaningful work, call \`add_memory\` with a short session summary.
 - When you discover a mistake, constraint, or reusable fact, call \`add_memory\`.
+- When the user corrects you by saying something should have been remembered, automated, or treated as a rule/preference, immediately capture that durable expectation.
+- After changing code, docs, configuration, or behavior, update relevant documentation in the same pass and checkpoint that documentation status when meaningful.
+- Do not wait for the user to explicitly request memory creation when the information is durable.
+
+Before final response:
+- If meaningful project work happened, run \`memory_checkpoint\` with session summary, decisions/facts/preferences/mistakes/tasks as appropriate.
+- Include user corrections and durable workflow expectations in the checkpoint.
+- If no MCP checkpoint tool is available, use the CLI fallback: \`memory add --project\` with the appropriate type and \`status: proposed\` when supported by the capture mode.
 
 Use these memory types:
 - \`decision\` for technical decisions.
 - \`session\` for completed work summaries.
 - \`knowledge\` for reusable facts.
 - \`mistake\` for lessons learned.
+- \`preference\` for user or project preferences.
+- \`rule\` for durable workflow requirements.
 - \`task\` for follow-up work.
 
 Use scope \`project\` by default.
@@ -52,11 +64,58 @@ const PAMH_MCP_SERVER = {
   enabled: true,
 }
 
+const PAMH_VSCODE_MCP_SERVER = {
+  command: 'memory',
+  args: ['server', 'start'],
+}
+
+const PAMH_CLAUDE_HOOKS = {
+  hooks: {
+    SessionStart: [
+      {
+        hooks: [
+          {
+            type: 'command',
+            command: 'memory hook record session-start --project --agent claude-code',
+          },
+        ],
+      },
+    ],
+    UserPromptSubmit: [
+      {
+        hooks: [
+          {
+            type: 'command',
+            command: 'memory hook record user-prompt --project --agent claude-code',
+          },
+        ],
+      },
+    ],
+    Stop: [
+      {
+        hooks: [
+          {
+            type: 'command',
+            command: 'memory hook record session-end --project --agent claude-code',
+          },
+        ],
+      },
+    ],
+  },
+}
+
 export async function configureProjectIntegrations(
   projectPath: string
 ): Promise<ConfigureProjectIntegrationsResult> {
   const results: IntegrationResult[] = []
+  const captureConfigPath = join(projectPath, '.ai-memory', 'auto-capture.yaml')
+  const hadCaptureConfig = existsSync(captureConfigPath)
 
+  await initAutoCaptureConfig(join(projectPath, '.ai-memory'))
+  results.push({
+    path: captureConfigPath,
+    status: hadCaptureConfig ? 'unchanged' : 'created',
+  })
   results.push(await upsertMarkdownBlock(join(projectPath, 'AGENTS.md'), '# Project Instructions'))
   results.push(await upsertMarkdownBlock(join(projectPath, 'CLAUDE.md'), '# Claude Instructions'))
   results.push(
@@ -71,9 +130,13 @@ export async function configureProjectIntegrations(
       '---\nalwaysApply: true\n---'
     )
   )
+  results.push(
+    await upsertJsonConfig(join(projectPath, '.claude', 'settings.json'), PAMH_CLAUDE_HOOKS)
+  )
   results.push(await upsertOpenCodeConfig(join(projectPath, 'opencode.json')))
   results.push(await upsertMcpConfig(join(projectPath, '.mcp.json')))
   results.push(await upsertMcpConfig(join(projectPath, '.cursor', 'mcp.json')))
+  results.push(await upsertVsCodeMcpConfig(join(projectPath, '.vscode', 'mcp.json')))
 
   return { results }
 }
@@ -194,6 +257,76 @@ async function upsertMcpConfig(filePath: string): Promise<IntegrationResult> {
   }
 }
 
+async function upsertVsCodeMcpConfig(filePath: string): Promise<IntegrationResult> {
+  const defaultConfig = {
+    servers: {
+      pamh: PAMH_VSCODE_MCP_SERVER,
+    },
+  }
+
+  await mkdir(dirname(filePath), { recursive: true })
+
+  if (!existsSync(filePath)) {
+    await writeJson(filePath, defaultConfig)
+    return { path: filePath, status: 'created' }
+  }
+
+  try {
+    const config = JSON.parse(await readFile(filePath, 'utf-8')) as Record<string, unknown>
+    const servers = isRecord(config.servers) ? config.servers : {}
+    const updated = {
+      ...config,
+      servers: {
+        ...servers,
+        pamh: PAMH_VSCODE_MCP_SERVER,
+      },
+    }
+
+    if (JSON.stringify(config) === JSON.stringify(updated)) {
+      return { path: filePath, status: 'unchanged' }
+    }
+
+    await writeJson(filePath, updated)
+    return { path: filePath, status: 'updated' }
+  } catch (error) {
+    return {
+      path: filePath,
+      status: 'skipped',
+      reason: `Could not parse existing JSON: ${error instanceof Error ? error.message : String(error)}`,
+    }
+  }
+}
+
+async function upsertJsonConfig(
+  filePath: string,
+  defaultConfig: Record<string, unknown>
+): Promise<IntegrationResult> {
+  await mkdir(dirname(filePath), { recursive: true })
+
+  if (!existsSync(filePath)) {
+    await writeJson(filePath, defaultConfig)
+    return { path: filePath, status: 'created' }
+  }
+
+  try {
+    const config = JSON.parse(await readFile(filePath, 'utf-8')) as Record<string, unknown>
+    const updated = deepMerge(config, defaultConfig)
+
+    if (JSON.stringify(config) === JSON.stringify(updated)) {
+      return { path: filePath, status: 'unchanged' }
+    }
+
+    await writeJson(filePath, updated)
+    return { path: filePath, status: 'updated' }
+  } catch (error) {
+    return {
+      path: filePath,
+      status: 'skipped',
+      reason: `Could not parse existing JSON: ${error instanceof Error ? error.message : String(error)}`,
+    }
+  }
+}
+
 function replaceMarkedBlock(content: string, block: string): string {
   const start = content.indexOf(START_MARKER)
   const end = content.indexOf(END_MARKER)
@@ -212,4 +345,22 @@ async function writeJson(filePath: string, value: unknown): Promise<void> {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function deepMerge(
+  base: Record<string, unknown>,
+  extension: Record<string, unknown>
+): Record<string, unknown> {
+  const output: Record<string, unknown> = { ...base }
+
+  for (const [key, value] of Object.entries(extension)) {
+    const existing = output[key]
+    if (isRecord(existing) && isRecord(value)) {
+      output[key] = deepMerge(existing, value)
+    } else {
+      output[key] = value
+    }
+  }
+
+  return output
 }

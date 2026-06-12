@@ -15,7 +15,12 @@ import {
   handoffBeginTool,
   handoffAcceptTool,
   forgetSweepTool,
+  memoryCheckpoint,
   recordHookEventTool,
+  applyMemoryRecommendation,
+  previewKnowledgeGraph,
+  previewMemoryDistillation,
+  recommendMemoryMaintenance,
   type McpToolContext,
 } from './tools.js'
 
@@ -84,6 +89,28 @@ export function createPamhMcpServer(context: McpToolContext) {
   )
 
   server.registerTool(
+    'memory_checkpoint',
+    {
+      title: 'Memory Checkpoint',
+      description:
+        'Submit a structured checkpoint of durable session learnings. PAMH creates proposed or active memories based on capture mode.',
+      inputSchema: {
+        summary: z.string().optional(),
+        decisions: z.array(z.string()).optional(),
+        facts: z.array(z.string()).optional(),
+        preferences: z.array(z.string()).optional(),
+        mistakes: z.array(z.string()).optional(),
+        tasks: z.array(z.string()).optional(),
+        agent: z.string().optional(),
+        model: z.string().optional(),
+        session_id: z.string().optional(),
+        scope: z.enum(['global', 'project']).default('project'),
+      },
+    },
+    async (input) => jsonResult(await memoryCheckpoint(input, context))
+  )
+
+  server.registerTool(
     'edit_memory',
     {
       title: 'Edit Memory',
@@ -135,6 +162,59 @@ export function createPamhMcpServer(context: McpToolContext) {
       },
     },
     async (input) => jsonResult(await compileMemoryContext(input, context))
+  )
+
+  server.registerTool(
+    'recommend_memory_maintenance',
+    {
+      title: 'Recommend Memory Maintenance',
+      description:
+        'Preview reviewable memory maintenance recommendations with evidence. Does not mutate memories.',
+      inputSchema: {
+        scope: scopeSchema,
+      },
+    },
+    async (input) => jsonResult(await recommendMemoryMaintenance(input, context))
+  )
+
+  server.registerTool(
+    'preview_memory_distillation',
+    {
+      title: 'Preview Memory Distillation',
+      description:
+        'Preview deterministic distillation proposals. Does not create distilled memories.',
+      inputSchema: {
+        scope: scopeSchema,
+      },
+    },
+    async (input) => jsonResult(await previewMemoryDistillation(input, context))
+  )
+
+  server.registerTool(
+    'preview_knowledge_graph',
+    {
+      title: 'Preview Knowledge Graph',
+      description:
+        'Preview evidence-backed Knowledge Graph entities and typed relations. Relations remain proposed.',
+      inputSchema: {
+        scope: scopeSchema,
+      },
+    },
+    async (input) => jsonResult(await previewKnowledgeGraph(input, context))
+  )
+
+  server.registerTool(
+    'apply_memory_recommendation',
+    {
+      title: 'Apply Memory Recommendation',
+      description:
+        'Accept and apply one previously generated memory recommendation by ID. Review evidence before calling.',
+      inputSchema: {
+        id: z.string(),
+        scope: scopeSchema,
+      },
+    },
+    async (input) => jsonResult(await applyMemoryRecommendation(input, context))
   )
 
   // Supersession tools

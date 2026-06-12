@@ -1,5 +1,10 @@
 import { Command } from 'commander'
-import { configureProjectIntegrations, initGlobalMemory, initProjectMemory } from 'pamh-core'
+import {
+  configureProjectIntegrations,
+  initAutoCaptureConfig,
+  initGlobalMemory,
+  initProjectMemory,
+} from 'pamh-core'
 
 interface InitProjectOptions {
   integrations?: boolean
@@ -13,6 +18,7 @@ export function registerInitCommand(program: Command) {
     .action(async (options: InitProjectOptions) => {
       const cwd = process.cwd()
       const path = await initProjectMemory(cwd)
+      await initAutoCaptureConfig(path)
       console.log(`Memory initialized at: ${path}`)
 
       if (options.integrations !== false) {
@@ -30,6 +36,7 @@ export function registerInitCommand(program: Command) {
     .description('Initialize global memory in ~/ai-memory')
     .action(async () => {
       const path = await initGlobalMemory()
+      await initAutoCaptureConfig(path)
       console.log(`Global memory initialized at: ${path}`)
     })
 }
