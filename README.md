@@ -230,6 +230,8 @@ pnpm format
 pnpm release:check
 ```
 
+See [docs/release.md](docs/release.md) for npm publishing.
+
 ## Structure
 
 ```text

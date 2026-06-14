@@ -1,0 +1,89 @@
+name: npm publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Package to publish
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - core
+          - ui
+          - api
+          - protocol
+          - cli
+      dry_run:
+        description: Run checks and packing without publishing
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify release
+        run: pnpm release:check
+
+      - name: Publish packages
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          declare -A package_dirs=(
+            [core]="packages/core"
+            [ui]="packages/ui"
+            [api]="packages/api"
+            [protocol]="packages/mcp"
+            [cli]="packages/cli"
+          )
+
+          publish_one() {
+            local key="$1"
+            local dir="${package_dirs[$key]}"
+            local name version
+            name="$(node -p "require('./${dir}/package.json').name")"
+            version="$(node -p "require('./${dir}/package.json').version")"
+
+            if npm view "${name}@${version}" version >/dev/null 2>&1; then
+              echo "Skipping ${name}@${version}; already published."
+              return
+            fi
+
+            if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+              npm pack "${dir}" --dry-run
+              return
+            fi
+
+            npm publish "${dir}" --access public --provenance
+          }
+
+          if [[ "${{ inputs.package }}" == "all" ]]; then
+            for key in core ui api protocol cli; do
+              publish_one "$key"
+            done
+          else
+            publish_one "${{ inputs.package }}"
+          fi

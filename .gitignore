@@ -13,7 +13,9 @@ coverage/
 .ai-memory
 .claude
 .cursor
-.github
+.github/*
+!.github/workflows/
+!.github/workflows/*.yml
 .vscode
 .mcp.json
 AGENTS.md
