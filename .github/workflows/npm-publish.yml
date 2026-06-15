@@ -74,11 +74,11 @@ jobs:
             fi
 
             if [[ "${{ inputs.dry_run }}" == "true" ]]; then
-              npm pack "${dir}" --dry-run
+              (cd "${dir}" && npm pack --dry-run)
               return
             fi
 
-            npm publish "${dir}" --access public --provenance
+            (cd "${dir}" && npm publish --access public --provenance)
           }
 
           if [[ "${{ inputs.package }}" == "all" ]]; then
