@@ -38,7 +38,7 @@ importers:
         specifier: ^0.1.5
         version: link:../core
       pamh-ui:
-        specifier: ^0.1.6
+        specifier: ^0.1.7
         version: link:../ui
 
   packages/cli:
@@ -50,7 +50,7 @@ importers:
         specifier: ^15.0.0
         version: 15.0.0
       pamh-api:
-        specifier: ^0.1.9
+        specifier: ^0.1.10
         version: link:../api
       pamh-core:
         specifier: ^0.1.5

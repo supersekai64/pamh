@@ -1,7 +1,6 @@
 import {
   BrainCircuit,
   CircleAlert,
-  Database,
   FileText,
   GitBranch,
   LayoutDashboard,
@@ -107,26 +106,6 @@ export function Sidebar({
       </nav>
 
       <Separator className="bg-muted" />
-
-      <div className="grid gap-2">
-        <p className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-          Project store
-        </p>
-        <Hint
-          side="right"
-          label="Project memory directory (.ai-memory). PAMH uses one project store for this map."
-        >
-          <div className="rounded-md bg-primary/8 p-3">
-            <div className="flex items-center gap-2 text-sm font-medium text-primary">
-              <Database className="size-4" />
-              .ai-memory
-            </div>
-            <p className="mt-2 text-sm leading-5 text-muted-foreground">
-              Project-local memory only. This map uses one project store.
-            </p>
-          </div>
-        </Hint>
-      </div>
 
       <div className="grid gap-2">
         <p className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
