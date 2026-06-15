@@ -1,6 +1,6 @@
 {
   "name": "pamh-ui",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "PAMH UI - Local web interface for PAMH",
   "type": "module",
   "license": "MIT",
