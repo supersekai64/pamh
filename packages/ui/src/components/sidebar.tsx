@@ -1,5 +1,6 @@
 import {
   BrainCircuit,
+  CircleAlert,
   Database,
   FileText,
   GitBranch,
@@ -58,12 +59,16 @@ const statusHints: Record<string, string> = {
 
 export function Sidebar({
   onReset,
+  onStatusSelect,
   onViewChange,
+  selectedStatus,
   stats,
   view,
 }: {
   onReset: () => void
+  onStatusSelect: (status: string) => void
   onViewChange: (view: WorkspaceView) => void
+  selectedStatus: string
   stats: Stats | null
   view: WorkspaceView
 }) {
@@ -130,11 +135,39 @@ export function Sidebar({
           ['noise', 'Noise', stats?.noise ?? 0],
           ['deleted', 'Deleted', stats?.deleted ?? 0],
         ].map(([statusKey, label, value]) => (
-          <Hint key={String(label)} side="right" label={statusHints[String(label)]}>
-            <div className="flex items-center justify-between rounded-md bg-muted/35 px-3 py-2 text-sm">
-              <span className="text-muted-foreground">{label}</span>
+          <Hint
+            key={String(label)}
+            side="right"
+            label={`${statusHints[String(label)]} Click to open Evidence filtered to ${String(label)} memories.`}
+          >
+            <button
+              className={cn(
+                'flex items-center justify-between rounded-md border border-transparent bg-muted/35 px-3 py-2 text-left text-sm transition hover:border-border hover:bg-muted/55 hover:text-foreground',
+                view === 'evidence' &&
+                  selectedStatus === statusKey &&
+                  'border-primary/25 bg-primary/10 text-foreground',
+                statusKey === 'proposed' &&
+                  Number(value) > 0 &&
+                  'border-sky-400/35 bg-sky-400/10 text-sky-100 shadow-[inset_0_0_0_1px_rgb(56_189_248_/_0.12)] hover:border-sky-300/50 hover:bg-sky-400/15'
+              )}
+              type="button"
+              onClick={() => onStatusSelect(String(statusKey))}
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                {statusKey === 'proposed' && Number(value) > 0 ? (
+                  <CircleAlert className="size-3.5 shrink-0 text-sky-200" />
+                ) : null}
+                <span
+                  className={cn(
+                    'truncate text-muted-foreground',
+                    statusKey === 'proposed' && Number(value) > 0 && 'font-medium text-sky-50'
+                  )}
+                >
+                  {label}
+                </span>
+              </span>
               <StatusCount status={String(statusKey)} value={Number(value)} />
-            </div>
+            </button>
           </Hint>
         ))}
       </div>

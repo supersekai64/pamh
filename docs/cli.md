@@ -45,7 +45,7 @@ memory add -t <type> -c <content> [options]
 
 **Options:**
 
-- `-t, --type <type>` - Memory type (required): decision, knowledge, mistake, rule, preference, session, task, client, pattern
+- `-t, --type <type>` - Memory type (required): decision, knowledge, mistake, rule, preference, session, task
 - `-c, --content <content>` - Memory content (required)
 - `--tags <tags>` - Comma-separated tags
 - `--salience <score>` - Importance score from `0` to `1` (default: `0.5`)
@@ -54,6 +54,37 @@ memory add -t <type> -c <content> [options]
 
 ```bash
 memory add -t decision -c "Use TypeScript for all packages" --tags "tech,typescript"
+```
+
+### Checkpoint
+
+```bash
+memory checkpoint [options]
+```
+
+Submit a structured summary of durable session learnings. This is the CLI fallback for agents that cannot call the MCP `memory_checkpoint` tool. It respects capture mode: `manual` records no durable memories, `assisted` creates `proposed` memories, and `auto` creates `active` memories.
+
+**Options:**
+
+- `--summary <summary>` - Short summary of completed work
+- `--decision <decision>` - Durable technical decision (repeatable)
+- `--fact <fact>` - Reusable project fact (repeatable)
+- `--preference <preference>` - Durable UX or workflow preference (repeatable)
+- `--mistake <mistake>` - Reusable lesson from a correction or bug (repeatable)
+- `--task <task>` - Follow-up task (repeatable)
+- `--agent <agent>` - Agent name to tag checkpoint memories
+- `--model <model>` - Model name to tag checkpoint memories
+- `--session-id <session_id>` - Session identifier for hook/audit records
+- `--json` - Print the raw checkpoint result as JSON
+
+**Example:**
+
+```bash
+memory checkpoint \
+  --summary "Updated the local UI workflow" \
+  --decision "Use Evidence as the review queue for proposed memories" \
+  --preference "Proposed memories should be prominent in the sidebar" \
+  --agent codex
 ```
 
 ### List Memories

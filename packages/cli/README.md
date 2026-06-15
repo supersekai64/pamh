@@ -15,6 +15,7 @@ This installs the `memory` command.
 ```bash
 memory init
 memory add -t decision -c "Use SQLite for the local memory index"
+memory checkpoint --summary "Finished CLI setup" --fact "PAMH stores project memory in .ai-memory"
 memory search "SQLite"
 memory server start
 ```

@@ -17,6 +17,7 @@ import { registerRestoreCommand } from './commands/restore.js'
 import { registerApproveCommand } from './commands/approve.js'
 import { registerRejectCommand } from './commands/reject.js'
 import { registerCaptureCommand } from './commands/capture.js'
+import { registerCheckpointCommand } from './commands/checkpoint.js'
 import { registerAuditCommand } from './commands/audit.js'
 import { registerExportCommand } from './commands/export-cmd.js'
 import { registerImportCommand } from './commands/import-cmd.js'
@@ -51,6 +52,7 @@ registerRestoreCommand(program)
 registerApproveCommand(program)
 registerRejectCommand(program)
 registerCaptureCommand(program)
+registerCheckpointCommand(program)
 registerAuditCommand(program)
 registerExportCommand(program)
 registerImportCommand(program)

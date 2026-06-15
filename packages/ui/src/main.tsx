@@ -590,6 +590,20 @@ function App() {
     }
   }
 
+  const openStatusFilter = (nextStatus: string) => {
+    setFocusedConcept('')
+    setQuery('')
+    setStatus(nextStatus)
+    setSelected(null)
+    setSelectedId(null)
+    setIsCreating(false)
+    setMessage('')
+    setWorkspaceView('evidence')
+    if (window.location.hash !== '#/evidence') {
+      window.history.pushState(null, '', '#/evidence')
+    }
+  }
+
   const focusConcept = (concept: string) => {
     setFocusedConcept(concept)
     setQuery('')
@@ -763,9 +777,11 @@ function App() {
       <div className="min-h-screen bg-background text-foreground">
         <div className="grid min-h-screen w-full grid-cols-[16rem_minmax(0,1fr)] gap-3 p-3 max-lg:grid-cols-1">
           <Sidebar
+            selectedStatus={status}
             stats={statsResponse?.stats ?? null}
             view={workspaceView}
             onReset={resetProjectMemory}
+            onStatusSelect={openStatusFilter}
             onViewChange={changeWorkspaceView}
           />
 
@@ -819,7 +835,6 @@ function App() {
               onConceptDepthChange={setConceptDepth}
               onConceptSelect={focusConcept}
               onEvidenceOpen={(id) => {
-                changeWorkspaceView('evidence')
                 void selectMemory(id)
               }}
               onGoToPage={changeWorkspaceView}
@@ -1646,9 +1661,9 @@ function MemoryIndex({
           </div>
         ) : null}
 
-        <div className="min-h-[30rem] overflow-x-auto">
+        <div className="min-h-120 overflow-x-auto">
           <div
-            className="grid min-h-[30rem] gap-3"
+            className="grid min-h-120 gap-3"
             style={{
               gridAutoColumns: groups.length ? 'minmax(min(22rem, 100%), 1fr)' : '1fr',
               gridAutoFlow: 'column',
@@ -1658,14 +1673,14 @@ function MemoryIndex({
               groups.map(([group, items]) => (
                 <section
                   key={group}
-                  className="flex h-[calc(100vh-26rem)] min-h-[28rem] min-w-0 flex-col overflow-hidden rounded-md border border-border bg-background/35"
+                  className="flex h-[calc(100vh-26rem)] min-h-112 min-w-0 flex-col overflow-hidden rounded-md border border-border bg-background/35"
                 >
-                  <div className="flex min-h-[4.5rem] items-start justify-between gap-3 border-b border-border bg-muted/25 px-3 py-2 text-sm">
+                  <div className="flex min-h-18 items-start justify-between gap-3 border-b border-border bg-muted/25 px-3 py-2 text-sm">
                     <div className="min-w-0">
                       <p className="truncate font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                         {group}
                       </p>
-                      <p className="mt-1 line-clamp-2 text-xs leading-4 text-muted-foreground">
+                      <p className="mt-1 line-clamp-2 text-sm leading-4 text-muted-foreground">
                         {typeHints[group] ?? 'Project memory category.'}
                       </p>
                     </div>
@@ -1689,7 +1704,7 @@ function MemoryIndex({
                 </section>
               ))
             ) : (
-              <div className="grid min-h-[26rem] place-items-center rounded-md border border-dashed border-border bg-muted/25 p-6 text-center">
+              <div className="grid min-h-104 place-items-center rounded-md border border-dashed border-border bg-muted/25 p-6 text-center">
                 <p className="text-sm text-muted-foreground">No memory matches this view.</p>
               </div>
             )}
@@ -1719,7 +1734,7 @@ function MemoryCard({
   return (
     <button
       className={cn(
-        'grid min-h-[8.5rem] gap-2 rounded-sm border border-border bg-card/70 p-3 text-left shadow-sm transition hover:border-primary/40 hover:bg-muted/45',
+        'grid min-h-34 gap-2 rounded-sm border border-border bg-card/70 p-3 text-left shadow-sm transition hover:border-primary/40 hover:bg-muted/45',
         selected && 'border-primary bg-primary/10 shadow-none'
       )}
       type="button"
@@ -2095,19 +2110,24 @@ function KnowledgeGraphPanel({
   onEvidence: (id: string) => void
 }) {
   const [selectedRelationId, setSelectedRelationId] = useState<string | null>(null)
-  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
-  const entities = graph?.entities ?? []
-  const relations = graph?.relations ?? []
+  const rawEntities = graph?.entities ?? []
+  const rawRelations = graph?.relations ?? []
+  const evidenceIds = Array.from(
+    new Set([
+      ...rawEntities.flatMap((entity) => entity.evidence_ids),
+      ...rawRelations.flatMap((relation) => relation.evidence_ids),
+    ])
+  )
+  const relations = rawRelations.filter(isDisplayKnowledgeRelation)
+  const relationEntityIds = new Set(
+    relations.flatMap((relation) => [relation.source, relation.target])
+  )
+  const entities = rawEntities.filter((entity) => relationEntityIds.has(entity.id))
   const entityById = new Map((graph?.entities ?? []).map((entity) => [entity.id, entity]))
   const relationTypes = groupBy(relations, (relation) => relation.type)
   const selectedRelation =
     relations.find((relation) => relation.id === selectedRelationId) ?? relations[0] ?? null
-  const selectedEntity =
-    entities.find((entity) => entity.id === selectedEntityId) ??
-    (selectedRelation ? entityById.get(selectedRelation.target) : null) ??
-    entities[0] ??
-    null
-  const hasGraph = relations.length > 0 || entities.length > 0
+  const hasGraph = evidenceIds.length >= 2 && relations.length > 0
 
   return (
     <section className="grid grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.65fr)] gap-4 max-xl:grid-cols-1">
@@ -2115,40 +2135,15 @@ function KnowledgeGraphPanel({
         title="Relation explorer"
         eyebrow="Knowledge graph"
         toolbar={
-          <div className="flex flex-wrap justify-end gap-2 text-xs">
-            <GraphMetric label="Entities" value={String(graph?.metrics.entity_count ?? 0)} />
-            <GraphMetric label="Relations" value={String(graph?.metrics.relation_count ?? 0)} />
-            <GraphMetric
-              label="Evidence"
-              value={`${Math.round((graph?.metrics.evidence_coverage ?? 1) * 100)}%`}
-            />
+          <div className="flex flex-wrap justify-end gap-2 text-sm">
+            <GraphMetric label="Entities" value={String(entities.length)} />
+            <GraphMetric label="Relations" value={String(relations.length)} />
+            <GraphMetric label="Evidence" value={String(evidenceIds.length)} />
           </div>
         }
       >
         {hasGraph ? (
           <div className="grid gap-4">
-            <div className="flex flex-wrap gap-2">
-              {entities.slice(0, 16).map((entity) => (
-                <button
-                  key={entity.id}
-                  className={cn(
-                    'rounded-full border px-3 py-1 text-xs transition',
-                    selectedEntity?.id === entity.id && !selectedRelationId
-                      ? 'border-primary/40 bg-primary/10 text-primary'
-                      : 'border-border bg-muted/35 text-muted-foreground hover:border-primary/30 hover:text-foreground'
-                  )}
-                  type="button"
-                  onClick={() => {
-                    setSelectedEntityId(entity.id)
-                    setSelectedRelationId(null)
-                  }}
-                >
-                  <span className="font-medium text-foreground">{entity.label}</span>
-                  <span className="ml-2 text-muted-foreground">{entity.type}</span>
-                </button>
-              ))}
-            </div>
-
             <ScrollArea className="h-152">
               <div className="grid gap-4 pr-3">
                 {Object.entries(relationTypes).map(([type, typedRelations]) => (
@@ -2180,7 +2175,6 @@ function KnowledgeGraphPanel({
                             type="button"
                             onClick={() => {
                               setSelectedRelationId(relation.id)
-                              setSelectedEntityId(null)
                             }}
                           >
                             <span className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 text-sm">
@@ -2208,21 +2202,31 @@ function KnowledgeGraphPanel({
             </ScrollArea>
           </div>
         ) : (
-          <div className="grid h-152 place-items-center rounded-md bg-muted/20 text-center">
-            <div>
+          <div className="grid h-152 place-items-center rounded-md border border-dashed border-border bg-muted/20 p-8 text-center">
+            <div className="max-w-md">
               <p className="text-sm font-medium text-foreground">
-                Not enough durable knowledge yet.
+                Knowledge graph needs at least 2 memories.
               </p>
               <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-                The graph appears once PAMH can infer named entities and typed relations from
-                project memories.
+                Add or approve more memories to reveal useful relations between concepts, decisions,
+                files, and evidence.
               </p>
+              {evidenceIds[0] ? (
+                <Button
+                  className="mt-4"
+                  variant="outline"
+                  onClick={() => onEvidence(evidenceIds[0])}
+                >
+                  <ListFilter />
+                  Open current evidence
+                </Button>
+              ) : null}
             </div>
           </div>
         )}
       </Panel>
 
-      <Panel title={selectedRelation ? 'Relation detail' : 'Entity detail'} eyebrow="Inspector">
+      <Panel title="Relation detail" eyebrow="Inspector">
         <div className="grid gap-4">
           {selectedRelation ? (
             <div className="grid gap-4">
@@ -2251,28 +2255,8 @@ function KnowledgeGraphPanel({
                 />
               </div>
             </div>
-          ) : selectedEntity ? (
-            <div className="grid gap-4">
-              <div>
-                <Badge variant="secondary">{selectedEntity.type}</Badge>
-                <h3 className="mt-3 text-lg font-semibold leading-7 text-foreground">
-                  {selectedEntity.label}
-                </h3>
-              </div>
-
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-                  Evidence
-                </p>
-                <EvidenceLinks
-                  directory={directory}
-                  ids={selectedEntity.evidence_ids}
-                  onOpen={onEvidence}
-                />
-              </div>
-            </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Select a relation or entity to inspect.</p>
+            <p className="text-sm text-muted-foreground">Select a relation to inspect.</p>
           )}
 
           {relations.length ? (
@@ -2293,6 +2277,10 @@ function GraphMetric({ label, value }: { label: string; value: string }) {
       <strong className="text-foreground">{value}</strong>
     </span>
   )
+}
+
+function isDisplayKnowledgeRelation(relation: KnowledgeRelation): boolean {
+  return relation.type !== 'mentions' && relation.source !== relation.target
 }
 
 interface RecommendationDescriptor {
