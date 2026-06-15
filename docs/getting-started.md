@@ -20,6 +20,8 @@ If npm stays quiet during the first install, use `npm install -g pamh-cli --logl
 On Windows, stop any running PAMH UI or MCP server before updating the global
 package. Native SQLite files can stay locked while `memory ui` or
 `memory server start` is running, which makes npm fail with `EBUSY`.
+After PAMH is installed, prefer `memory upgrade` for future global updates; it
+stops running PAMH UI/MCP services before invoking npm.
 
 For a project-local install that bootstraps PAMH automatically:
 

@@ -10,6 +10,15 @@ npm install -g pamh-cli
 
 This installs the `memory` command.
 
+For future global updates, prefer:
+
+```bash
+memory upgrade
+```
+
+This stops running PAMH UI/MCP services before invoking npm, which avoids
+Windows native-file locks during updates.
+
 For automatic project bootstrap:
 
 ```bash

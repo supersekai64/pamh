@@ -9,6 +9,17 @@ pnpm build
 
 ## Commands
 
+### Upgrade
+
+```bash
+memory upgrade
+```
+
+Update the global PAMH CLI. The command starts a small updater process, stops
+running PAMH UI/MCP services, then runs `npm install -g pamh-cli@latest`.
+This is the recommended update path on Windows because native SQLite files can
+stay locked while PAMH services are running.
+
 ### Initialization
 
 ```bash

@@ -32,6 +32,7 @@ import { registerSupersedeCommand } from './commands/supersede.js'
 import { registerDebugCommand } from './commands/debug.js'
 import { registerHookCommand } from './commands/hook.js'
 import { registerIntelligenceCommand } from './commands/intelligence.js'
+import { registerUpgradeCommand } from './commands/upgrade.js'
 
 const program = new Command()
 
@@ -67,5 +68,6 @@ registerSupersedeCommand(program)
 registerDebugCommand(program)
 registerHookCommand(program)
 registerIntelligenceCommand(program)
+registerUpgradeCommand(program)
 
 program.parse()
