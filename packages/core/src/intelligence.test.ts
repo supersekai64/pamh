@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import {
@@ -62,6 +62,62 @@ describe('intelligence layer', () => {
     expect(reloaded?.metadata.source_ids?.sort()).toEqual(
       [first.metadata.id, second.metadata.id, third.metadata.id].sort()
     )
+  })
+
+  it('does not propose distillation for French stopword pseudo-concepts', async () => {
+    const contents = [
+      'La sauvegarde localStorage est supprimée quand la grille est terminée.',
+      'Le serveur de développement Sudoku est lancé avec PAMH installé.',
+      'Le stockage PAMH du projet est dans le dossier local avec la configuration.',
+      'Le projet est situé dans Documents avec une mémoire initialisée.',
+      'Vérifier avec PAMH que la mémoire durable est proposée dans le projet.',
+    ]
+
+    for (const content of contents) {
+      await createMemory(memoryPath, {
+        type: 'knowledge',
+        scope: 'project',
+        status: 'proposed',
+        tags: [],
+        content,
+      })
+    }
+
+    const proposals = await analyzeDistillation(memoryPath)
+    const concepts = proposals.map((proposal) => proposal.concept.toLowerCase())
+
+    expect(concepts).not.toContain('est')
+    expect(concepts).not.toContain('avec')
+    expect(concepts).not.toContain('dans')
+  })
+
+  it('prunes stored recommendations with invalid stopword concepts', async () => {
+    const staleRecommendation = {
+      id: 'rec_stale_est',
+      type: 'distill_candidates',
+      status: 'proposed',
+      title: 'Distill 5 memories about Est',
+      explanation: 'Est appears repeatedly.',
+      evidence_ids: [],
+      action: 'merge_or_distill',
+      payload: { concept: 'Est', source_ids: [] },
+      fingerprint: 'distill_candidates|merge_or_distill||Est',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+    await writeFile(
+      join(memoryPath, 'recommendations.json'),
+      `${JSON.stringify([staleRecommendation], null, 2)}\n`,
+      'utf-8'
+    )
+
+    const report = await generateRecommendations(memoryPath)
+    const stored = JSON.parse(
+      await readFile(join(memoryPath, 'recommendations.json'), 'utf-8')
+    ) as unknown[]
+
+    expect(report.recommendations.map((item) => item.id)).not.toContain(staleRecommendation.id)
+    expect(stored).toEqual([])
   })
 
   it('generates reviewable recommendations and a graph with evidence-backed relations', async () => {

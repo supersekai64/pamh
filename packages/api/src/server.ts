@@ -14,9 +14,12 @@ import {
   createMemory,
   deferRecommendation,
   deleteMemory,
+  extractConceptCandidates,
+  formatConceptLabel,
   generateRecommendations,
   getProjectMemoryPath,
   indexAllMemories,
+  normalizeConcept,
   preferContradictionRecommendation,
   recordMemoryDebugEvent,
   readMemory,
@@ -872,77 +875,6 @@ function parseBoolean(value: string | null): boolean {
   return ['1', 'true', 'yes', 'on'].includes((value ?? '').toLowerCase())
 }
 
-const IMPORTANT_SHORT_CONCEPTS = new Set(['ai', 'api', 'db', 'ui', 'ux'])
-const STOP_CONCEPTS = new Set([
-  'about',
-  'active',
-  'after',
-  'also',
-  'and',
-  'are',
-  'as',
-  'avec',
-  'browser',
-  'but',
-  'can',
-  'ces',
-  'cet',
-  'cette',
-  'content',
-  'created',
-  'dans',
-  'deleted',
-  'des',
-  'donc',
-  'each',
-  'elle',
-  'elles',
-  'eux',
-  'from',
-  'global',
-  'has',
-  'have',
-  'indexed',
-  'into',
-  'is',
-  'its',
-  'local',
-  'longer',
-  'manual',
-  'memory',
-  'memories',
-  'not',
-  'now',
-  'of',
-  'only',
-  'on',
-  'or',
-  'par',
-  'pas',
-  'pamh',
-  'pour',
-  'project',
-  'proposed',
-  'quand',
-  'que',
-  'qui',
-  'session',
-  'should',
-  'source',
-  'status',
-  'store',
-  'sur',
-  'the',
-  'this',
-  'through',
-  'to',
-  'une',
-  'updated',
-  'use',
-  'user',
-  'with',
-])
-
 function buildConceptGraph(
   memories: SearchResult[],
   limit: number,
@@ -982,10 +914,15 @@ function buildConceptGraph(
       { category: 'tag' | 'keyword'; title: string; weight: number }
     >()
 
-    memory.tags.forEach((tag) => addConceptCandidate(candidates, tag, 'tag', 4.75, ignored))
-    extractKeywords(memory.content).forEach((keyword) =>
-      addConceptCandidate(candidates, keyword, 'keyword', 1, ignored)
-    )
+    for (const candidate of extractConceptCandidates(memory.content, memory.tags)) {
+      if (ignored.has(candidate.id)) continue
+      const current = candidates.get(candidate.id)
+      candidates.set(candidate.id, {
+        category: current?.category === 'tag' ? 'tag' : candidate.category,
+        title: candidate.title,
+        weight: (current?.weight ?? 0) + candidate.weight,
+      })
+    }
 
     const conceptIds = new Set<string>()
     ;[...candidates.entries()]
@@ -1091,25 +1028,6 @@ function filterContextConceptGraph(
   }
 }
 
-function addConceptCandidate(
-  candidates: Map<string, { category: 'tag' | 'keyword'; title: string; weight: number }>,
-  value: string,
-  category: 'tag' | 'keyword',
-  weight: number,
-  ignoredConcepts: Set<string>
-): void {
-  const normalized = normalizeConcept(value)
-  if (!normalized) return
-  if (ignoredConcepts.has(normalized)) return
-
-  const current = candidates.get(normalized)
-  candidates.set(normalized, {
-    category: current?.category === 'tag' ? 'tag' : category,
-    title: formatConceptLabel(normalized),
-    weight: (current?.weight ?? 0) + weight,
-  })
-}
-
 function toConceptSample(memory: SearchResult): ConceptSample {
   return {
     id: memory.id,
@@ -1131,23 +1049,6 @@ function mapToSortedRecord(map: Map<string, number>): Record<string, number> {
       acc[key] = value
       return acc
     }, {})
-}
-
-function extractKeywords(content: string): string[] {
-  const counts = new Map<string, number>()
-  const words = content.match(/[\p{L}\p{N}][\p{L}\p{N}.+#-]{1,}/gu) ?? []
-
-  words.forEach((word) => {
-    const normalized = normalizeConcept(word)
-    if (!normalized) return
-    counts.set(normalized, (counts.get(normalized) ?? 0) + 1)
-  })
-
-  return [...counts.entries()]
-    .filter(([keyword, count]) => count > 1 || IMPORTANT_SHORT_CONCEPTS.has(keyword))
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .slice(0, 24)
-    .map(([keyword]) => keyword)
 }
 
 function buildContextPreview(
@@ -1447,82 +1348,6 @@ function buildConsolidatedMemoryContent(concept: string, memories: SearchResult[
   )
 
   return lines.join('\n')
-}
-
-function normalizeConcept(value: string): string | null {
-  const normalized = value
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/three\.?js/g, 'threejs')
-    .replace(/[^a-z0-9+#.\-\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/^[.#-]+|[.#-]+$/g, '')
-  const canonical = canonicalizeConcept(normalized)
-
-  if (!canonical || /^\d+$/.test(canonical)) return null
-  if (canonical.length < 3 && !IMPORTANT_SHORT_CONCEPTS.has(canonical)) return null
-  if (STOP_CONCEPTS.has(canonical)) return null
-  return canonical
-}
-
-function canonicalizeConcept(value: string): string {
-  return value
-    .split(/(\s+|-)/)
-    .map((part) => {
-      if (/^\s+$|^-+$/.test(part)) return part
-      return singularizeEnglishConcept(part)
-    })
-    .join('')
-}
-
-function singularizeEnglishConcept(value: string): string {
-  const irregular: Record<string, string> = {
-    analyses: 'analysis',
-    children: 'child',
-    criteria: 'criterion',
-    data: 'data',
-    indices: 'index',
-    people: 'person',
-  }
-  if (irregular[value]) return irregular[value]
-  if (IMPORTANT_SHORT_CONCEPTS.has(value)) return value
-  if (/^(css|ss|status|threejs|webgl|kubernetes)$/.test(value)) return value
-  if (value.length <= 3) return value
-  if (value.endsWith('ies') && value.length > 4) return `${value.slice(0, -3)}y`
-  if (/(ches|shes|xes|zes)$/.test(value) && value.length > 5) return value.slice(0, -2)
-  if (value.endsWith('ses') && !value.endsWith('sses') && value.length > 5)
-    return value.slice(0, -2)
-  if (value.endsWith('s') && !/(ss|us|is)$/.test(value) && value.length > 4) {
-    return value.slice(0, -1)
-  }
-  return value
-}
-
-function formatConceptLabel(value: string): string {
-  const special: Record<string, string> = {
-    ai: 'AI',
-    api: 'API',
-    db: 'DB',
-    llm: 'LLM',
-    mcp: 'MCP',
-    sqlite: 'SQLite',
-    threejs: 'Three.js',
-    ui: 'UI',
-    ux: 'UX',
-    webgl: 'WebGL',
-  }
-
-  if (special[value]) return special[value]
-
-  return value
-    .split(/([\s-]+)/)
-    .map((part) => {
-      if (/^[\s-]+$/.test(part)) return part
-      return special[part] ?? part.charAt(0).toUpperCase() + part.slice(1)
-    })
-    .join('')
 }
 
 function getConceptSearchTerm(value: string): string {

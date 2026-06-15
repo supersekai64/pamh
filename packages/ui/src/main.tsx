@@ -733,9 +733,24 @@ function App() {
   }
 
   async function handleRecommendation(id: string, action: 'apply' | 'reject' | 'defer') {
-    await api(`/api/recommendations/${id}/${action}?store=${PROJECT_STORE}`, { method: 'POST' })
+    const response = await api<{ memory?: Memory | null }>(
+      `/api/recommendations/${id}/${action}?store=${PROJECT_STORE}`,
+      { method: 'POST' }
+    )
     const labels = { apply: 'Applied', reject: 'Rejected', defer: 'Deferred' }
-    setMessage(`${labels[action]} recommendation ${id}`)
+    if (action === 'apply' && response.memory) {
+      setSelected(response.memory)
+      setSelectedId(response.memory.metadata.id)
+      setStatus(response.memory.metadata.status)
+      setWorkspaceView('evidence')
+      setMessage(
+        response.memory.metadata.status === 'proposed'
+          ? `Created proposed memory ${response.memory.metadata.id}. Approve it to include it in the LLM context.`
+          : `Applied recommendation ${id}`
+      )
+    } else {
+      setMessage(`${labels[action]} recommendation ${id}`)
+    }
     await refresh()
   }
 

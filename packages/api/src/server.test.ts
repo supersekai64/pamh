@@ -3,7 +3,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { type AddressInfo } from 'node:net'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { createMemory, initProjectMemory } from '../../core/src/index.js'
+import {
+  applyDistillationProposal,
+  createMemory,
+  initProjectMemory,
+  type DistillationProposal,
+} from '../../core/src/index.js'
 import { createLocalApiServer, type LocalApiServerOptions } from './server.js'
 
 describe('local API concepts', () => {
@@ -135,6 +140,85 @@ describe('local API concepts', () => {
       await close()
     }
   })
+
+  it('filters French stopwords from context concepts', async () => {
+    const contents = [
+      'La sauvegarde localStorage est restaurée dans le navigateur avec une grille durable.',
+      'Le serveur Sudoku est lancé dans le navigateur avec une configuration locale.',
+      'La mémoire projet est disponible dans le dossier local avec une sauvegarde durable.',
+    ]
+
+    for (const content of contents) {
+      await createMemory(memoryPath, {
+        type: 'knowledge',
+        scope: 'project',
+        status: 'active',
+        tags: [],
+        content,
+      })
+    }
+
+    const { baseUrl, close } = await startTestServer({ cwd: tempDir })
+    try {
+      const concepts = await getJson<ApiConceptGraph>(
+        `${baseUrl}/api/concepts?store=project&limit=24&maxMemories=6`
+      )
+      const titles = concepts.concepts.map((concept) => concept.title)
+
+      expect(titles).not.toContain('Est')
+      expect(titles).not.toContain('Avec')
+      expect(titles).not.toContain('Dans')
+    } finally {
+      await close()
+    }
+  })
+
+  it('includes an approved distilled memory in the LLM context after sources are archived', async () => {
+    const sourceIds: string[] = []
+    for (let index = 0; index < 6; index += 1) {
+      const memory = await createMemory(memoryPath, {
+        type: 'decision',
+        scope: 'project',
+        status: 'active',
+        tags: ['agent-codex', 'decision'],
+        content: `Agent Codex decision ${index + 1}: keep the Sudoku localStorage save reliable.`,
+      })
+      sourceIds.push(memory.metadata.id)
+    }
+    const proposal: DistillationProposal = {
+      id: 'distill-agent-codex-test',
+      concept: 'Agent-Codex',
+      type: 'knowledge',
+      scope: 'project',
+      tags: ['agent-codex', 'distilled', 'decision'],
+      content:
+        'Agent-Codex is a recurring project signal supported by source memories.\n\nDurable summary:\n- Keep the Sudoku localStorage save reliable.',
+      source_ids: sourceIds,
+      source_count: sourceIds.length,
+      compression_ratio: 0.4,
+      reason: 'Agent-Codex appears repeatedly.',
+    }
+
+    const distilled = await applyDistillationProposal(memoryPath, proposal)
+
+    const { baseUrl, close } = await startTestServer({ cwd: tempDir })
+    try {
+      const beforeApprove = await getJson<ContextPreview>(
+        `${baseUrl}/api/context-preview?store=project&maxMemories=6`
+      )
+      expect(beforeApprove.sources.map((source) => source.id)).not.toContain(distilled.metadata.id)
+
+      await postJson(`${baseUrl}/api/memories/${distilled.metadata.id}/approve?store=project`)
+
+      const afterApprove = await getJson<ContextPreview>(
+        `${baseUrl}/api/context-preview?store=project&maxMemories=6`
+      )
+      expect(afterApprove.sources.map((source) => source.id)).toContain(distilled.metadata.id)
+      expect(afterApprove.content).toContain('Agent-Codex is a recurring project signal')
+    } finally {
+      await close()
+    }
+  })
 })
 
 interface ApiConceptGraph {
@@ -145,7 +229,9 @@ interface ApiConceptGraph {
 }
 
 interface ContextPreview {
+  content: string
   memoryCount: number
+  sources: Array<{ id: string }>
   topConcepts: Array<{ title: string; occurrences: number; score: number }>
 }
 
@@ -169,6 +255,12 @@ async function startTestServer(
 
 async function getJson<T>(url: string): Promise<T> {
   const response = await fetch(url)
+  expect(response.ok).toBe(true)
+  return (await response.json()) as T
+}
+
+async function postJson<T = unknown>(url: string): Promise<T> {
+  const response = await fetch(url, { method: 'POST' })
   expect(response.ok).toBe(true)
   return (await response.json()) as T
 }

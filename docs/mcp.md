@@ -10,6 +10,15 @@ Running the default project initializer configures best-effort MCP and agent ins
 memory init
 ```
 
+For projects that already use npm/package.json, installing `pamh-cli` as a
+direct local dependency also runs this bootstrap automatically:
+
+```bash
+npm install -D pamh-cli
+```
+
+Use `PAMH_SKIP_PROJECT_INIT=1` to disable the postinstall bootstrap.
+
 Generated or updated files:
 
 - `AGENTS.md` for Codex-style and generic agent instructions
@@ -46,8 +55,9 @@ args = ["server", "start"]
 startup_timeout_sec = 30
 ```
 
-Restart Codex after running the command. PAMH intentionally does not modify
-global client config from `npm install`; the global setup is opt-in.
+Restart Codex after running the command. A project-local npm install can write
+project integration files automatically, but PAMH intentionally does not modify
+global client config from npm postinstall; the global setup is opt-in.
 
 ## Start Server
 

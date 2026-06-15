@@ -17,6 +17,17 @@ This installs the `memory` command globally.
 
 If npm stays quiet during the first install, use `npm install -g pamh-cli --loglevel=info` to show dependency progress.
 
+For a project-local install that bootstraps PAMH automatically:
+
+```bash
+cd your-project
+npm install -D pamh-cli
+```
+
+When `pamh-cli` is installed as a direct project dependency, its postinstall
+script initializes `.ai-memory/` and writes supported agent/IDE integration
+files. Set `PAMH_SKIP_PROJECT_INIT=1` before install to opt out.
+
 **From source** (for development):
 
 ```bash
@@ -55,6 +66,10 @@ memory init
 
 This creates `.ai-memory/` in the current directory and auto-configures supported project-level agent integrations. Use `memory init --no-integrations` for memory storage only.
 
+If `pamh-cli` was installed locally with `npm install -D pamh-cli`, npm already
+runs this project bootstrap during postinstall. Re-run `memory init` whenever
+you want to refresh integration files.
+
 If you use Codex and want PAMH exposed in every new Codex session, also configure the global Codex MCP server:
 
 ```bash
@@ -62,6 +77,12 @@ memory init --codex-global
 ```
 
 Restart Codex after changing the global MCP configuration. PAMH does not modify global client config during `npm install`; global integration is explicit so package installation stays safe and predictable.
+
+Project-local npm install can bootstrap project files, but it cannot force an
+already-running IDE or AI client to reload them. After the first install, reload
+VS Code/Cursor windows, start a new Claude Code/OpenCode session, or
+restart/open a new Codex session so the client reloads project instructions and
+MCP configuration.
 
 ## Configure Your IDE or AI Agent
 

@@ -37,6 +37,19 @@ This installs the `memory` command globally.
 
 If npm stays quiet during the first install, use `npm install -g pamh-cli --loglevel=info` to show dependency progress.
 
+To make PAMH part of a specific project that already uses npm/package.json,
+install it locally from that project root:
+
+```bash
+npm install -D pamh-cli
+```
+
+Local installs bootstrap the project automatically: PAMH creates `.ai-memory/`
+and writes the supported agent/IDE integration files. After the first install,
+reload VS Code/Cursor windows, start a new Claude Code/OpenCode session, or
+restart/open a new Codex session so the client reloads project instructions and
+MCP configuration.
+
 **From source** (for development):
 
 ```bash
@@ -65,6 +78,9 @@ memory init
 ```
 
 This creates `.ai-memory/` and configures agent integrations automatically.
+
+If you installed `pamh-cli` locally in the project with `npm install -D pamh-cli`,
+this step is performed automatically by npm postinstall.
 
 ### 2. Configure your IDE or AI agent
 

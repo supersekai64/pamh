@@ -4,6 +4,12 @@ import { join } from 'node:path'
 import { generateId } from './id.js'
 import { archiveMemory, createMemory, deleteMemory, listMemories, updateMemory } from './storage.js'
 import { recordMemoryDebugEvent, summarizeMemoryForDebug } from './memory-debug.js'
+import {
+  extractConceptKeywords as extractKeywords,
+  formatConceptLabel as formatLabel,
+  normalizeConcept,
+  tokenizeConceptText as tokens,
+} from './concepts.js'
 import type { Memory, MemoryStatus, MemoryType } from './types.js'
 
 export type CleanupAction =
@@ -124,37 +130,6 @@ export interface ApplyRecommendationOptions {
 }
 
 const RECOMMENDATIONS_FILE = 'recommendations.json'
-const STOP_WORDS = new Set([
-  'about',
-  'after',
-  'also',
-  'and',
-  'are',
-  'but',
-  'can',
-  'for',
-  'from',
-  'has',
-  'have',
-  'into',
-  'memory',
-  'memories',
-  'not',
-  'of',
-  'only',
-  'or',
-  'pamh',
-  'project',
-  'should',
-  'the',
-  'this',
-  'through',
-  'to',
-  'use',
-  'user',
-  'with',
-])
-
 const STACK_TERMS = new Set([
   'api',
   'codex',
@@ -174,10 +149,22 @@ const STACK_TERMS = new Set([
 export async function generateRecommendations(basePath: string): Promise<MemoryMaintenanceReport> {
   const memories = await listMemories(basePath)
   const existing = await readRecommendations(basePath)
+  const validExisting = existing.filter(isValidStoredRecommendation)
+  if (validExisting.length !== existing.length) {
+    await writeRecommendations(basePath, validExisting)
+    await recordMemoryDebugEvent(basePath, {
+      action: 'recommendation.prune_invalid',
+      outcome: 'ok',
+      tool: 'intelligence',
+      details: {
+        removed_count: existing.length - validExisting.length,
+      },
+    })
+  }
   const suppressed = new Set(
-    existing.filter((item) => item.status !== 'proposed').map((item) => item.fingerprint)
+    validExisting.filter((item) => item.status !== 'proposed').map((item) => item.fingerprint)
   )
-  const existingByFingerprint = new Map(existing.map((item) => [item.fingerprint, item]))
+  const existingByFingerprint = new Map(validExisting.map((item) => [item.fingerprint, item]))
   const generated = buildRecommendationCandidates(memories)
   const now = new Date().toISOString()
   const newRecommendations = generated
@@ -186,7 +173,7 @@ export async function generateRecommendations(basePath: string): Promise<MemoryM
     .map((item) => ({ ...item, updated_at: item.updated_at ?? now }))
 
   const merged = [
-    ...existing.filter((item) => !newRecommendations.some((next) => next.id === item.id)),
+    ...validExisting.filter((item) => !newRecommendations.some((next) => next.id === item.id)),
     ...newRecommendations,
   ]
 
@@ -988,6 +975,13 @@ function hasOpposingLanguage(left: string, right: string): boolean {
   return pairs.some(([a, b]) => (a.test(left) && b.test(right)) || (b.test(left) && a.test(right)))
 }
 
+function isValidStoredRecommendation(recommendation: MemoryRecommendation): boolean {
+  const concept =
+    typeof recommendation.payload?.concept === 'string' ? recommendation.payload.concept : null
+  if (!concept) return true
+  return normalizeConcept(concept) !== null
+}
+
 async function readRecommendations(basePath: string): Promise<MemoryRecommendation[]> {
   const filePath = join(basePath, RECOMMENDATIONS_FILE)
   if (!existsSync(filePath)) return []
@@ -1116,62 +1110,6 @@ function extractStacks(content: string, tags: string[]): string[] {
     words.filter((word) => STACK_TERMS.has(word)),
     (word) => word
   ).slice(0, 8)
-}
-
-function extractKeywords(content: string): string[] {
-  const counts = new Map<string, number>()
-  for (const token of tokens(content)) {
-    counts.set(token, (counts.get(token) ?? 0) + 1)
-  }
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .map(([token]) => token)
-}
-
-function tokens(content: string): string[] {
-  return (
-    content
-      .toLowerCase()
-      .normalize('NFKD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .match(/[a-z0-9][a-z0-9+#.-]{2,}/g) ?? []
-  ).filter((word) => !STOP_WORDS.has(word) && !/^\d+$/.test(word))
-}
-
-function normalizeConcept(value: string): string | null {
-  const normalized = value
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9+#.\-\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/^[.#-]+|[.#-]+$/g, '')
-  if (!normalized || STOP_WORDS.has(normalized)) return null
-  if (normalized.length < 3 && !['ai', 'api', 'db', 'ui', 'ux'].includes(normalized)) return null
-  return normalized
-}
-
-function formatLabel(value: string): string {
-  const special: Record<string, string> = {
-    ai: 'AI',
-    api: 'API',
-    db: 'DB',
-    llm: 'LLM',
-    mcp: 'MCP',
-    sdk: 'SDK',
-    sqlite: 'SQLite',
-    ui: 'UI',
-    ux: 'UX',
-  }
-
-  return value
-    .split(/([\s-]+)/)
-    .map((part) => {
-      if (/^[\s-]+$/.test(part)) return part
-      return special[part] ?? part.charAt(0).toUpperCase() + part.slice(1)
-    })
-    .join('')
 }
 
 function slug(value: string): string {

@@ -45,6 +45,16 @@ export {
   type CompiledContext,
 } from './context.js'
 export {
+  extractConceptCandidates,
+  extractConceptKeywords,
+  formatConceptLabel,
+  isStopConcept,
+  normalizeConcept,
+  tokenizeConceptText,
+  type ConceptCandidate,
+  type ConceptCategory,
+} from './concepts.js'
+export {
   createEmbeddingProvider,
   LocalEmbeddingProvider,
   OpenAIEmbeddingProvider,
