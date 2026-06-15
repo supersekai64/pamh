@@ -1,7 +1,7 @@
 import { createReadStream, existsSync } from 'node:fs'
 import { readFile, rm, writeFile } from 'node:fs/promises'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { dirname, extname, join, normalize, resolve, sep } from 'node:path'
+import { basename, dirname, extname, join, normalize, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   MemoryIndex,
@@ -76,6 +76,7 @@ interface ConceptSample {
   scope: string
   status: string
   source: string
+  created_at: string
   updated_at: string
   tags: string[]
   content: string
@@ -606,6 +607,11 @@ async function handleApiRequest(
     const view = getVisibleMemories(rawMemories, { includeNoise })
     const stats = computeStats(view.memories)
     sendJson(response, 200, {
+      project: {
+        name: basename(cwd),
+        path: cwd,
+        memoryPath: basePath,
+      },
       stats,
       rawStats: computeStats(rawMemories),
       rawTotalMemories: view.rawTotal,
@@ -1111,6 +1117,7 @@ function toConceptSample(memory: SearchResult): ConceptSample {
     scope: memory.scope,
     status: memory.status,
     source: memory.source,
+    created_at: memory.created_at,
     updated_at: memory.updated_at,
     tags: memory.tags.slice(0, 8),
     content: truncateText(memory.content.replace(/\s+/g, ' ').trim(), 220),

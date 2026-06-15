@@ -4,6 +4,7 @@ import {
   Database,
   FileText,
   GitBranch,
+  LayoutDashboard,
   ListFilter,
   Shield,
   Trash2,
@@ -17,7 +18,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { getStatusTone } from '@/lib/status-tone'
 import { cn } from '@/lib/utils'
 
-type WorkspaceView = 'map' | 'evidence' | 'context' | 'governance' | 'knowledge'
+type WorkspaceView = 'dashboard' | 'map' | 'evidence' | 'context' | 'governance' | 'knowledge'
 
 interface Stats {
   active: number
@@ -28,6 +29,7 @@ interface Stats {
 }
 
 const navItems: Array<{ icon: LucideIcon; label: string; view: WorkspaceView }> = [
+  { icon: LayoutDashboard, label: 'Dashboard', view: 'dashboard' },
   { icon: BrainCircuit, label: 'Concepts map', view: 'map' },
   { icon: GitBranch, label: 'Knowledge graph', view: 'knowledge' },
   { icon: ListFilter, label: 'Evidence', view: 'evidence' },
@@ -36,6 +38,8 @@ const navItems: Array<{ icon: LucideIcon; label: string; view: WorkspaceView }> 
 ]
 
 const navHints: Record<WorkspaceView, string> = {
+  dashboard:
+    'Project overview with store identity, memory counts, current context concepts, and evidence set size.',
   map: 'Force-directed map of the strongest concepts (tags + keywords) extracted from the current LLM context. Click a node to focus its evidence.',
   knowledge:
     'Typed graph of entities and relations inferred across memories (decisions, components, people, etc.) with evidence links.',
@@ -170,10 +174,6 @@ export function Sidebar({
             </button>
           </Hint>
         ))}
-      </div>
-
-      <div className="mt-auto rounded-md bg-muted/35 px-3 py-2 text-sm text-muted-foreground">
-        Project-local memory only.
       </div>
 
       <Hint
