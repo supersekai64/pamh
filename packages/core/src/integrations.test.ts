@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { configureProjectIntegrations } from './integrations.js'
+import { configureCodexGlobalIntegration, configureProjectIntegrations } from './integrations.js'
 
 describe('integrations', () => {
   let tempDir: string
@@ -114,5 +114,48 @@ describe('integrations', () => {
     const opencodeResult = result.results.find((entry) => entry.path.endsWith('opencode.json'))
 
     expect(opencodeResult?.status).toBe('skipped')
+  })
+
+  it('should configure global Codex MCP server', async () => {
+    const codexHome = join(tempDir, '.codex-home')
+
+    const result = await configureCodexGlobalIntegration(codexHome)
+    const raw = await readFile(join(codexHome, 'config.toml'), 'utf-8')
+
+    expect(result.status).toBe('created')
+    expect(raw).toContain('[mcp_servers.pamh]')
+    expect(raw).toContain('command = "memory"')
+    expect(raw).toContain('args = ["server", "start"]')
+  })
+
+  it('should update global Codex MCP server idempotently', async () => {
+    const codexHome = join(tempDir, '.codex-home')
+    const configPath = join(codexHome, 'config.toml')
+    await mkdir(codexHome, { recursive: true })
+    await writeFile(
+      configPath,
+      `model = "gpt-5.4"
+
+[mcp_servers.pamh]
+command = "old-memory"
+args = ["old"]
+
+[mcp_servers.node_repl]
+command = "node_repl"
+`,
+      'utf-8'
+    )
+
+    const first = await configureCodexGlobalIntegration(codexHome)
+    const second = await configureCodexGlobalIntegration(codexHome)
+    const raw = await readFile(configPath, 'utf-8')
+
+    expect(first.status).toBe('updated')
+    expect(second.status).toBe('unchanged')
+    expect(raw.match(/\[mcp_servers\.pamh\]/g)).toHaveLength(1)
+    expect(raw).toContain('model = "gpt-5.4"')
+    expect(raw).toContain('[mcp_servers.node_repl]')
+    expect(raw).toContain('command = "memory"')
+    expect(raw).not.toContain('old-memory')
   })
 })

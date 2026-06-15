@@ -1303,7 +1303,7 @@ function MetricPanel({
   const classes = {
     primary: 'bg-primary text-primary-foreground',
     secondary: 'bg-secondary text-secondary-foreground',
-    muted: 'border border-border bg-muted text-foreground',
+    muted: 'bg-muted text-foreground',
   }
 
   return (
@@ -1631,7 +1631,7 @@ function MemoryIndex({
         </div>
 
         {activeConcept ? (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-muted/35 p-3 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted/35 p-3 text-sm">
             <div className="min-w-0">
               <p className="font-medium text-foreground">{activeConcept.title}</p>
               <p className="mt-1 text-muted-foreground">
@@ -2041,7 +2041,7 @@ function ContextPreviewPanel({
           <ScrollArea className="h-144">
             <div className="grid gap-2 pr-3">
               {(contextPreview?.sources ?? []).map((source) => (
-                <div key={source.id} className="rounded-md border border-border bg-muted/35 p-3">
+                <div key={source.id} className="rounded-md bg-muted/35 p-3">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-medium text-foreground">{source.section}</span>
                     <span className="text-sm text-muted-foreground">
@@ -2094,78 +2094,204 @@ function KnowledgeGraphPanel({
   graph: KnowledgeGraphResponse | null
   onEvidence: (id: string) => void
 }) {
+  const [selectedRelationId, setSelectedRelationId] = useState<string | null>(null)
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
+  const entities = graph?.entities ?? []
+  const relations = graph?.relations ?? []
   const entityById = new Map((graph?.entities ?? []).map((entity) => [entity.id, entity]))
-  const relationTypes = groupBy(graph?.relations ?? [], (relation) => relation.type)
+  const relationTypes = groupBy(relations, (relation) => relation.type)
+  const selectedRelation =
+    relations.find((relation) => relation.id === selectedRelationId) ?? relations[0] ?? null
+  const selectedEntity =
+    entities.find((entity) => entity.id === selectedEntityId) ??
+    (selectedRelation ? entityById.get(selectedRelation.target) : null) ??
+    entities[0] ??
+    null
+  const hasGraph = relations.length > 0 || entities.length > 0
 
   return (
-    <section className="grid grid-cols-[minmax(22rem,0.8fr)_minmax(28rem,1.2fr)] gap-4 max-xl:grid-cols-1">
-      <Panel title="Typed relations" eyebrow="Knowledge Graph">
-        <div className="grid gap-3">
-          <div className="grid grid-cols-3 gap-2 max-md:grid-cols-1">
-            <MetaTile label="Entities" value={String(graph?.metrics.entity_count ?? 0)} />
-            <MetaTile label="Relations" value={String(graph?.metrics.relation_count ?? 0)} />
-            <MetaTile
+    <section className="grid grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.65fr)] gap-4 max-xl:grid-cols-1">
+      <Panel
+        title="Relation explorer"
+        eyebrow="Knowledge graph"
+        toolbar={
+          <div className="flex flex-wrap justify-end gap-2 text-xs">
+            <GraphMetric label="Entities" value={String(graph?.metrics.entity_count ?? 0)} />
+            <GraphMetric label="Relations" value={String(graph?.metrics.relation_count ?? 0)} />
+            <GraphMetric
               label="Evidence"
               value={`${Math.round((graph?.metrics.evidence_coverage ?? 1) * 100)}%`}
             />
           </div>
-          <ScrollArea className="h-168">
-            <div className="grid gap-3 pr-3">
-              {Object.entries(relationTypes).map(([type, relations]) => (
-                <div key={type} className="rounded-md border border-border bg-muted/30 p-3">
-                  <div className="mb-2 flex items-center justify-between gap-2">
-                    <Badge className="bg-primary/10 text-primary hover:bg-primary/10">{type}</Badge>
-                    <span className="text-sm text-muted-foreground">
-                      {countLabel(relations.length, 'edge', 'edges')}
-                    </span>
-                  </div>
-                  <div className="grid gap-2">
-                    {relations.slice(0, 12).map((relation) => (
-                      <div key={relation.id} className="rounded-md bg-background/50 p-2">
-                        <p className="text-sm leading-5 text-foreground">
-                          {entityById.get(relation.source)?.label ?? relation.source}
-                          <span className="text-muted-foreground">{' -> '}</span>
-                          {entityById.get(relation.target)?.label ?? relation.target}
-                        </p>
-                        <EvidenceLinks
-                          directory={directory}
-                          ids={relation.evidence_ids}
-                          onOpen={onEvidence}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
+        }
+      >
+        {hasGraph ? (
+          <div className="grid gap-4">
+            <div className="flex flex-wrap gap-2">
+              {entities.slice(0, 16).map((entity) => (
+                <button
+                  key={entity.id}
+                  className={cn(
+                    'rounded-full border px-3 py-1 text-xs transition',
+                    selectedEntity?.id === entity.id && !selectedRelationId
+                      ? 'border-primary/40 bg-primary/10 text-primary'
+                      : 'border-border bg-muted/35 text-muted-foreground hover:border-primary/30 hover:text-foreground'
+                  )}
+                  type="button"
+                  onClick={() => {
+                    setSelectedEntityId(entity.id)
+                    setSelectedRelationId(null)
+                  }}
+                >
+                  <span className="font-medium text-foreground">{entity.label}</span>
+                  <span className="ml-2 text-muted-foreground">{entity.type}</span>
+                </button>
               ))}
-              {!graph?.relations.length ? (
-                <p className="text-sm text-muted-foreground">No graph relations available yet.</p>
-              ) : null}
             </div>
-          </ScrollArea>
-        </div>
+
+            <ScrollArea className="h-152">
+              <div className="grid gap-4 pr-3">
+                {Object.entries(relationTypes).map(([type, typedRelations]) => (
+                  <section key={type} className="grid gap-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <Badge className="bg-primary/10 text-primary hover:bg-primary/10">
+                        {type}
+                      </Badge>
+                      <span className="text-sm text-muted-foreground">
+                        {countLabel(typedRelations.length, 'relation', 'relations')}
+                      </span>
+                    </div>
+
+                    <div className="grid gap-2">
+                      {typedRelations.slice(0, 16).map((relation) => {
+                        const source = entityById.get(relation.source)
+                        const target = entityById.get(relation.target)
+                        const selected = selectedRelation?.id === relation.id
+
+                        return (
+                          <button
+                            key={relation.id}
+                            className={cn(
+                              'grid gap-2 rounded-md border px-3 py-3 text-left transition',
+                              selected
+                                ? 'border-primary/35 bg-primary/10'
+                                : 'border-border bg-muted/20 hover:border-primary/30 hover:bg-muted/35'
+                            )}
+                            type="button"
+                            onClick={() => {
+                              setSelectedRelationId(relation.id)
+                              setSelectedEntityId(null)
+                            }}
+                          >
+                            <span className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 text-sm">
+                              <span className="truncate font-medium text-foreground">
+                                {source?.label ?? relation.source}
+                              </span>
+                              <span className="text-muted-foreground">-&gt;</span>
+                              <span className="truncate font-medium text-foreground">
+                                {target?.label ?? relation.target}
+                              </span>
+                            </span>
+                            <span className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                              <span className="truncate">{relation.explanation}</span>
+                              <span className="shrink-0">
+                                {countLabel(relation.evidence_ids.length, 'evidence', 'evidence')}
+                              </span>
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+        ) : (
+          <div className="grid h-152 place-items-center rounded-md bg-muted/20 text-center">
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                Not enough durable knowledge yet.
+              </p>
+              <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+                The graph appears once PAMH can infer named entities and typed relations from
+                project memories.
+              </p>
+            </div>
+          </div>
+        )}
       </Panel>
-      <Panel title="Entities" eyebrow="Inspectable evidence">
-        <ScrollArea className="h-184">
-          <div className="grid gap-2 pr-3">
-            {(graph?.entities ?? []).slice(0, 120).map((entity) => (
-              <div key={entity.id} className="rounded-md border border-border bg-muted/30 p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-sm font-medium text-foreground">
-                    {entity.label}
-                  </span>
-                  <Badge variant="secondary">{entity.type}</Badge>
-                </div>
+
+      <Panel title={selectedRelation ? 'Relation detail' : 'Entity detail'} eyebrow="Inspector">
+        <div className="grid gap-4">
+          {selectedRelation ? (
+            <div className="grid gap-4">
+              <div>
+                <Badge className="bg-primary/10 text-primary hover:bg-primary/10">
+                  {selectedRelation.type}
+                </Badge>
+                <h3 className="mt-3 text-lg font-semibold leading-7 text-foreground">
+                  {entityById.get(selectedRelation.source)?.label ?? selectedRelation.source}
+                  <span className="mx-2 text-muted-foreground">-&gt;</span>
+                  {entityById.get(selectedRelation.target)?.label ?? selectedRelation.target}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {selectedRelation.explanation}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                  Evidence
+                </p>
                 <EvidenceLinks
                   directory={directory}
-                  ids={entity.evidence_ids}
+                  ids={selectedRelation.evidence_ids}
                   onOpen={onEvidence}
                 />
               </div>
-            ))}
-          </div>
-        </ScrollArea>
+            </div>
+          ) : selectedEntity ? (
+            <div className="grid gap-4">
+              <div>
+                <Badge variant="secondary">{selectedEntity.type}</Badge>
+                <h3 className="mt-3 text-lg font-semibold leading-7 text-foreground">
+                  {selectedEntity.label}
+                </h3>
+              </div>
+
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                  Evidence
+                </p>
+                <EvidenceLinks
+                  directory={directory}
+                  ids={selectedEntity.evidence_ids}
+                  onOpen={onEvidence}
+                />
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Select a relation or entity to inspect.</p>
+          )}
+
+          {relations.length ? (
+            <div className="rounded-md bg-muted/25 p-3 text-sm leading-6 text-muted-foreground">
+              Select a relation on the left to review the exact evidence that produced it.
+            </div>
+          ) : null}
+        </div>
       </Panel>
     </section>
+  )
+}
+
+function GraphMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full bg-muted/50 px-3 py-1 text-muted-foreground">
+      <span>{label}</span>
+      <strong className="text-foreground">{value}</strong>
+    </span>
   )
 }
 
@@ -2326,7 +2452,7 @@ function GovernancePanel({
                   />
                 </div>
               </Hint>
-              <div className="rounded-md border border-border bg-muted/35 p-3">
+              <div className="rounded-md bg-muted/35 p-3">
                 <p className="text-sm font-medium text-foreground">Raw project store</p>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
                   {countLabel(
@@ -2696,7 +2822,7 @@ function Label({ children, text, hint }: { children: ReactNode; text: string; hi
 
 function MetaTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-border bg-muted/35 p-3">
+    <div className="rounded-md bg-muted/35 p-3">
       <p className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
         {label}
       </p>
@@ -2825,7 +2951,7 @@ class MemoryGraphView {
     this.container.innerHTML = ''
     if (!conceptGraph?.concepts.length) {
       container.innerHTML =
-        '<p class="grid min-h-112 place-items-center text-sm text-muted-foreground">No concepts in the current LLM context.</p>'
+        '<p class="grid h-full min-h-112 place-items-center text-sm text-muted-foreground">No concepts in the current LLM context.</p>'
       this.resizeObserver = new ResizeObserver(() => undefined)
       return
     }

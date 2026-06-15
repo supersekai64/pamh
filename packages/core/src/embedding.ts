@@ -1,13 +1,22 @@
-import { pipeline, env } from '@xenova/transformers'
-import type { FeatureExtractionPipeline } from '@xenova/transformers'
-
-env.allowLocalModels = false
-env.useBrowserCache = false
-
 export interface EmbeddingProvider {
   generate(text: string): Promise<number[]>
   getDimensions(): number
 }
+
+type FeatureExtractionPipeline = (
+  text: string,
+  options: { pooling: 'mean'; normalize: boolean }
+) => Promise<{ data: Iterable<number> }>
+
+type TransformersModule = {
+  env: {
+    allowLocalModels: boolean
+    useBrowserCache: boolean
+  }
+  pipeline(task: 'feature-extraction', model: string): Promise<FeatureExtractionPipeline>
+}
+
+const LOCAL_EMBEDDINGS_PACKAGE = '@xenova/transformers'
 
 export class LocalEmbeddingProvider implements EmbeddingProvider {
   private model: FeatureExtractionPipeline | null = null
@@ -21,7 +30,10 @@ export class LocalEmbeddingProvider implements EmbeddingProvider {
 
   async generate(text: string): Promise<number[]> {
     if (!this.model) {
-      this.model = await pipeline('feature-extraction', this.modelName)
+      const transformers = await loadTransformers()
+      transformers.env.allowLocalModels = false
+      transformers.env.useBrowserCache = false
+      this.model = await transformers.pipeline('feature-extraction', this.modelName)
     }
 
     const model = this.model
@@ -93,4 +105,31 @@ export function createEmbeddingProvider(config?: {
   }
 
   return new LocalEmbeddingProvider()
+}
+
+async function loadTransformers(): Promise<TransformersModule> {
+  try {
+    return (await import(LOCAL_EMBEDDINGS_PACKAGE)) as TransformersModule
+  } catch (error) {
+    if (isMissingOptionalDependency(error)) {
+      throw new Error(
+        [
+          'Local semantic search requires the optional @xenova/transformers package.',
+          'Install it next to PAMH with: npm install -g @xenova/transformers',
+          'Or use OpenAI embeddings by setting EMBEDDING_PROVIDER=openai and OPENAI_API_KEY.',
+        ].join(' ')
+      )
+    }
+
+    throw error
+  }
+}
+
+function isMissingOptionalDependency(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    (error as NodeJS.ErrnoException).code === 'ERR_MODULE_NOT_FOUND' &&
+    error.message.includes(LOCAL_EMBEDDINGS_PACKAGE)
+  )
 }

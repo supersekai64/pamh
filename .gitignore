@@ -11,6 +11,7 @@ secrets/
 coverage/
 .turbo/
 .ai-memory
+.codex
 .claude
 .cursor
 .github/*
@@ -22,3 +23,4 @@ AGENTS.md
 CLAUDE.md
 opencode.json
 PAMH_INTELLIGENCE_PLAN.md
+scripts/publish-npm.mjs

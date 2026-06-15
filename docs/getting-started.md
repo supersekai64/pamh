@@ -15,6 +15,8 @@ npm install -g pamh-cli
 
 This installs the `memory` command globally.
 
+If npm stays quiet during the first install, use `npm install -g pamh-cli --loglevel=info` to show dependency progress.
+
 **From source** (for development):
 
 ```bash
@@ -52,6 +54,14 @@ memory init
 ```
 
 This creates `.ai-memory/` in the current directory and auto-configures supported project-level agent integrations. Use `memory init --no-integrations` for memory storage only.
+
+If you use Codex and want PAMH exposed in every new Codex session, also configure the global Codex MCP server:
+
+```bash
+memory init --codex-global
+```
+
+Restart Codex after changing the global MCP configuration. PAMH does not modify global client config during `npm install`; global integration is explicit so package installation stays safe and predictable.
 
 ## Configure Your IDE or AI Agent
 

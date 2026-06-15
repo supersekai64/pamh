@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { homedir } from 'node:os'
 import { initAutoCaptureConfig } from './auto-capture.js'
 
 export interface IntegrationResult {
@@ -85,6 +86,11 @@ const PAMH_VSCODE_MCP_SERVER = {
   args: ['server', 'start'],
 }
 
+const PAMH_CODEX_GLOBAL_TOML = `[mcp_servers.pamh]
+command = "memory"
+args = ["server", "start"]
+startup_timeout_sec = 30`
+
 const PAMH_CLAUDE_HOOKS = {
   hooks: {
     SessionStart: [
@@ -155,6 +161,12 @@ export async function configureProjectIntegrations(
   results.push(await upsertVsCodeMcpConfig(join(projectPath, '.vscode', 'mcp.json')))
 
   return { results }
+}
+
+export async function configureCodexGlobalIntegration(
+  codexHome = join(homedir(), '.codex')
+): Promise<IntegrationResult> {
+  return upsertTomlTable(join(codexHome, 'config.toml'), 'mcp_servers.pamh', PAMH_CODEX_GLOBAL_TOML)
 }
 
 async function upsertMarkdownBlock(filePath: string, heading: string): Promise<IntegrationResult> {
@@ -343,6 +355,36 @@ async function upsertJsonConfig(
   }
 }
 
+async function upsertTomlTable(
+  filePath: string,
+  tableName: string,
+  tableBlock: string
+): Promise<IntegrationResult> {
+  await mkdir(dirname(filePath), { recursive: true })
+
+  if (!existsSync(filePath)) {
+    await writeFile(filePath, `${tableBlock}\n`, 'utf-8')
+    return { path: filePath, status: 'created' }
+  }
+
+  const existing = await readFile(filePath, 'utf-8')
+  const lines = existing.split(/\r?\n/)
+  const tableHeader = `[${tableName}]`
+  const start = lines.findIndex((line) => line.trim() === tableHeader)
+
+  if (start !== -1) {
+    const end = findNextTomlTable(lines, start + 1)
+    const updatedLines = [...lines.slice(0, start), ...tableBlock.split('\n'), ...lines.slice(end)]
+    const updated = ensureTrailingNewline(updatedLines.join('\n'))
+    if (updated === existing) return { path: filePath, status: 'unchanged' }
+    await writeFile(filePath, updated, 'utf-8')
+    return { path: filePath, status: 'updated' }
+  }
+
+  await writeFile(filePath, `${existing.trimEnd()}\n\n${tableBlock}\n`, 'utf-8')
+  return { path: filePath, status: 'updated' }
+}
+
 function replaceMarkedBlock(content: string, block: string): string {
   const start = content.indexOf(START_MARKER)
   const end = content.indexOf(END_MARKER)
@@ -379,4 +421,13 @@ function deepMerge(
   }
 
   return output
+}
+
+function findNextTomlTable(lines: string[], start: number): number {
+  const next = lines.findIndex((line, index) => index >= start && /^\s*\[[^\]]+\]\s*$/.test(line))
+  return next === -1 ? lines.length : next
+}
+
+function ensureTrailingNewline(value: string): string {
+  return value.endsWith('\n') ? value : `${value}\n`
 }

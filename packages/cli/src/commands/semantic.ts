@@ -11,7 +11,7 @@ export function registerSemanticCommand(program: Command) {
       const limit = parseInt(options.limit, 10)
 
       console.log(`Searching semantically for: "${query}"`)
-      console.log('Loading embedding model (first run may take a moment)...\n')
+      console.log('Loading embedding provider (first local run may take a moment)...\n')
 
       try {
         const semanticIndex = new SemanticIndex(basePath)
@@ -44,8 +44,12 @@ export function registerSemanticCommand(program: Command) {
 
         semanticIndex.close()
       } catch (error) {
-        console.error('Error during semantic search:', error)
+        console.error('Error during semantic search:', formatSemanticError(error))
         process.exit(1)
       }
     })
+}
+
+function formatSemanticError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }

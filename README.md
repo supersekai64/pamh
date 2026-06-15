@@ -35,6 +35,8 @@ npm install -g pamh-cli
 
 This installs the `memory` command globally.
 
+If npm stays quiet during the first install, use `npm install -g pamh-cli --loglevel=info` to show dependency progress.
+
 **From source** (for development):
 
 ```bash
@@ -208,8 +210,14 @@ See [docs/ui.md](docs/ui.md).
 
 PAMH uses vector embeddings for semantic search:
 
-- **Default**: Local model `Xenova/all-MiniLM-L6-v2` (384 dimensions, runs offline)
+- **Optional local**: `Xenova/all-MiniLM-L6-v2` (384 dimensions, runs offline after setup)
 - **Optional**: OpenAI `text-embedding-3-small` (1536 dimensions, requires API key)
+
+To use local embeddings:
+
+```bash
+npm install -g @xenova/transformers
+```
 
 To use OpenAI embeddings:
 

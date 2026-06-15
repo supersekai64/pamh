@@ -52,6 +52,7 @@ export {
 } from './embedding.js'
 export { SemanticIndex, type SemanticSearchResult } from './semantic.js'
 export {
+  configureCodexGlobalIntegration,
   configureProjectIntegrations,
   type ConfigureProjectIntegrationsResult,
   type IntegrationResult,

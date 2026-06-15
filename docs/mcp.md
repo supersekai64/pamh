@@ -30,6 +30,25 @@ Use this only to initialize memory storage without integration files:
 memory init --no-integrations
 ```
 
+For Codex, project files may not be enough if the client only loads global MCP
+servers at session startup. Configure the global Codex MCP server explicitly:
+
+```bash
+memory init --codex-global
+```
+
+This updates `~/.codex/config.toml` with:
+
+```toml
+[mcp_servers.pamh]
+command = "memory"
+args = ["server", "start"]
+startup_timeout_sec = 30
+```
+
+Restart Codex after running the command. PAMH intentionally does not modify
+global client config from `npm install`; the global setup is opt-in.
+
 ## Start Server
 
 ```bash

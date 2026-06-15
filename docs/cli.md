@@ -159,7 +159,13 @@ memory search "database" --tag "sql" --limit 10
 memory search "frontend framework" --semantic
 ```
 
-Semantic search uses a hybrid embedding provider: local embeddings by default, or OpenAI embeddings when `EMBEDDING_PROVIDER=openai` and `OPENAI_API_KEY` are configured.
+Semantic search uses either optional local embeddings or OpenAI embeddings. For local embeddings with the global CLI, install `@xenova/transformers` globally once:
+
+```bash
+npm install -g @xenova/transformers
+```
+
+For OpenAI embeddings, set `EMBEDDING_PROVIDER=openai` and `OPENAI_API_KEY`.
 
 ### Index Management
 

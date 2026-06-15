@@ -16,11 +16,17 @@ No. Markdown is the source of truth. SQLite is an index.
 
 ## Can I use PAMH offline?
 
-Yes for core storage, text search, CLI, export/import, and MCP. Semantic search uses local embeddings by default, but the first local model download may require network access.
+Yes for core storage, text search, CLI, export/import, and MCP. Semantic search is optional; local embeddings run offline after installing `@xenova/transformers` and downloading the model once.
 
 ## Does semantic search require OpenAI?
 
-No. PAMH uses a local embedding provider by default. OpenAI can be enabled explicitly with:
+No. PAMH supports optional local embeddings:
+
+```bash
+npm install -g @xenova/transformers
+```
+
+OpenAI can be enabled explicitly with:
 
 ```bash
 EMBEDDING_PROVIDER=openai
