@@ -142,7 +142,7 @@ export function Sidebar({
                 ) : null}
                 <span
                   className={cn(
-                    'truncate text-muted-foreground',
+                    'truncate text-sm text-muted-foreground',
                     statusKey === 'proposed' && Number(value) > 0 && 'font-medium text-sky-50'
                   )}
                 >

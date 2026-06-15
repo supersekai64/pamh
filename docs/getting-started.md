@@ -21,7 +21,9 @@ On Windows, stop any running PAMH UI or MCP server before updating the global
 package. Native SQLite files can stay locked while `memory ui` or
 `memory server start` is running, which makes npm fail with `EBUSY`.
 After PAMH is installed, prefer `memory upgrade` for future global updates; it
-stops running PAMH UI/MCP services before invoking npm.
+stops running PAMH UI/MCP services before invoking npm. The command prints a
+status file, log file, and a platform-specific follow command so you can watch
+upgrade progress while the updater runs in the background.
 
 For a project-local install that bootstraps PAMH automatically:
 

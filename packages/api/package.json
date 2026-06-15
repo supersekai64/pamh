@@ -1,6 +1,6 @@
 {
   "name": "pamh-api",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "PAMH API - Local HTTP API for PAMH clients",
   "type": "module",
   "license": "MIT",
@@ -42,7 +42,7 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "pamh-core": "^0.1.5",
+    "pamh-core": "^0.1.6",
     "pamh-ui": "^0.1.7"
   }
 }

@@ -2,7 +2,6 @@ import { createConnection } from 'node:net'
 import { get, request as httpRequest } from 'node:http'
 import { execFile, spawn } from 'node:child_process'
 import { Command } from 'commander'
-import { startLocalApiServer } from 'pamh-api'
 
 interface UiCommandOptions {
   host?: string
@@ -28,11 +27,7 @@ export function registerUiCommand(program: Command) {
       const url = `http://${host}:${port}`
 
       try {
-        const app = await startLocalApiServer({
-          cwd: process.cwd(),
-          host,
-          port,
-        })
+        const app = await startUiServer(host, port)
 
         console.log(`PAMH UI running at ${app.url}`)
         console.log('Press Ctrl+C to stop.')
@@ -52,7 +47,7 @@ export function registerUiCommand(program: Command) {
               await waitForPortFree(host, port, 4000)
             }
 
-            const app = await startLocalApiServer({ cwd: process.cwd(), host, port })
+            const app = await startUiServer(host, port)
             console.log(`PAMH UI running at ${app.url}`)
             console.log('Press Ctrl+C to stop.')
             if (options.open) openBrowser(app.url)
@@ -63,9 +58,35 @@ export function registerUiCommand(program: Command) {
           )
           process.exit(1)
         }
+        if (isPamhPackageMismatch(error)) {
+          console.error(
+            'PAMH UI cannot start because the installed pamh-cli, pamh-api, and pamh-core packages are incompatible.'
+          )
+          console.error(
+            'Update all published PAMH packages together, or use a workspace-linked CLI build.'
+          )
+          console.error(error instanceof Error ? error.message : String(error))
+          process.exit(1)
+        }
         throw error
       }
     })
+}
+
+async function startUiServer(host: string, port: number) {
+  const { startLocalApiServer } = await import('pamh-api')
+  return startLocalApiServer({
+    cwd: process.cwd(),
+    host,
+    port,
+  })
+}
+
+function isPamhPackageMismatch(error: unknown): boolean {
+  return (
+    error instanceof SyntaxError &&
+    /requested module 'pamh-core' does not provide an export named/i.test(error.message)
+  )
 }
 
 function probeServer(url: string): Promise<boolean> {

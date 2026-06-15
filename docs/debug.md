@@ -44,3 +44,21 @@ PAMH_TOOL=mcp
 Logged events include memory create/read/update/delete/archive/restore/approve/reject/access,
 full reindexing, context compilation, context writes, UI/API concept analysis, and memory
 list/search requests.
+
+## Import/export mismatch
+
+If `memory ui` or another command fails with an ESM import error such as:
+
+```text
+SyntaxError: The requested module 'pamh-core' does not provide an export named 'extractConceptCandidates'
+```
+
+the installed packages are out of sync. Upgrade the CLI so `pamh-cli`, `pamh-api`, and `pamh-core`
+resolve to compatible versions:
+
+```bash
+npm install -g pamh-cli@latest
+```
+
+For a workspace checkout, run `pnpm install && pnpm build && pnpm link:cli` after changing package
+versions or dependency ranges.

@@ -20,6 +20,19 @@ running PAMH UI/MCP services, then runs `npm install -g pamh-cli@latest`.
 This is the recommended update path on Windows because native SQLite files can
 stay locked while PAMH services are running.
 
+`memory upgrade` prints the status file, log file, and a platform-specific
+command for following progress live. On Windows, use the printed
+`Get-Content -Wait -LiteralPath ...` command to watch the updater without
+starting another PAMH process during npm installation.
+
+```bash
+memory upgrade status
+memory upgrade log
+```
+
+`memory upgrade status` shows the latest recorded phase, package spec, npm
+command, message, and log path. `memory upgrade log` prints the latest log path.
+
 ### Initialization
 
 ```bash

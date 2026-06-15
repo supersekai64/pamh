@@ -2,12 +2,21 @@
 
 import { execFile, spawn } from 'node:child_process'
 import { setTimeout as delay } from 'node:timers/promises'
+import {
+  appendUpgradeLog,
+  getUpgradeStatePaths,
+  writeUpgradeStatus,
+  type UpgradePhase,
+} from './commands/upgrade-state.js'
 
 interface UpgradeOptions {
   packageSpec: string
   npmCommand: string
   waitMs: number
   dryRun: boolean
+  runId: string
+  logPath: string
+  startedAt: string
 }
 
 const ownPid = process.pid
@@ -20,23 +29,42 @@ main().catch((error) => {
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2))
 
-  if (options.waitMs > 0) {
-    await delay(options.waitMs)
+  try {
+    recordProgress(options, 'waiting', 'Waiting for the launcher process to exit.')
+    if (options.waitMs > 0) {
+      await delay(options.waitMs)
+    }
+
+    recordProgress(options, 'stopping-services', 'Stopping running PAMH UI/MCP services.')
+    const stopped = await stopRunningPamhServices(options.dryRun)
+    recordProgress(
+      options,
+      'stopping-services',
+      `Stopped ${stopped.length} running PAMH service${stopped.length === 1 ? '' : 's'}.`,
+      { stoppedServices: stopped.length }
+    )
+
+    const args = ['install', '-g', options.packageSpec]
+    recordProgress(options, 'installing', `Running: ${options.npmCommand} ${args.join(' ')}`, {
+      stoppedServices: stopped.length,
+    })
+
+    if (options.dryRun) {
+      recordProgress(options, 'succeeded', 'Dry run complete.', { stoppedServices: stopped.length })
+      return
+    }
+
+    await execFileLogged(options.npmCommand, args, options)
+    recordProgress(options, 'succeeded', 'PAMH upgrade completed.', {
+      stoppedServices: stopped.length,
+      exitCode: 0,
+    })
+  } catch (error) {
+    recordProgress(options, 'failed', error instanceof Error ? error.message : String(error), {
+      exitCode: 1,
+    })
+    throw error
   }
-
-  const stopped = await stopRunningPamhServices(options.dryRun)
-  if (stopped.length > 0) {
-    console.log(`Stopped ${stopped.length} running PAMH service${stopped.length === 1 ? '' : 's'}.`)
-  }
-
-  const args = ['install', '-g', options.packageSpec]
-  console.log(`Running: ${options.npmCommand} ${args.join(' ')}`)
-
-  if (options.dryRun) {
-    return
-  }
-
-  await execFileInherited(options.npmCommand, args)
 }
 
 function parseArgs(args: string[]): UpgradeOptions {
@@ -45,6 +73,9 @@ function parseArgs(args: string[]): UpgradeOptions {
     npmCommand: process.platform === 'win32' ? 'npm.cmd' : 'npm',
     waitMs: 1000,
     dryRun: false,
+    runId: `upgrade-${Date.now()}`,
+    logPath: '',
+    startedAt: new Date().toISOString(),
   }
 
   for (let index = 0; index < args.length; index += 1) {
@@ -61,10 +92,61 @@ function parseArgs(args: string[]): UpgradeOptions {
       index += 1
     } else if (arg === '--dry-run') {
       options.dryRun = true
+    } else if (arg === '--run-id' && args[index + 1]) {
+      options.runId = args[index + 1]
+      index += 1
+    } else if (arg === '--log-path' && args[index + 1]) {
+      options.logPath = args[index + 1]
+      index += 1
+    } else if (arg === '--started-at' && args[index + 1]) {
+      options.startedAt = args[index + 1]
+      index += 1
     }
   }
 
+  if (!options.logPath) {
+    options.logPath = getUpgradeStatePaths(options.runId).logPath
+  }
+
   return options
+}
+
+function recordProgress(
+  options: UpgradeOptions,
+  phase: UpgradePhase,
+  message: string,
+  extra: Partial<{
+    stoppedServices: number
+    exitCode: number
+  }> = {}
+): void {
+  const status = createStatus(options, phase, message, extra)
+  writeUpgradeStatus(status)
+  const line = `[${status.updatedAt}] ${phase}: ${message}\n`
+  appendUpgradeLog(options.logPath, line)
+  console.log(message)
+}
+
+function createStatus(
+  options: UpgradeOptions,
+  phase: UpgradePhase,
+  message: string,
+  extra: Partial<{
+    stoppedServices: number
+    exitCode: number
+  }> = {}
+) {
+  return {
+    runId: options.runId,
+    phase,
+    message,
+    packageSpec: options.packageSpec,
+    npmCommand: options.npmCommand,
+    startedAt: options.startedAt,
+    updatedAt: new Date().toISOString(),
+    logPath: options.logPath,
+    ...extra,
+  }
 }
 
 async function stopRunningPamhServices(dryRun: boolean): Promise<number[]> {
@@ -130,9 +212,23 @@ function parsePidList(value: string): number[] {
     .filter((pid) => Number.isFinite(pid))
 }
 
-function execFileInherited(command: string, args: string[]): Promise<void> {
+function execFileLogged(command: string, args: string[], options: UpgradeOptions): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: 'inherit', windowsHide: false })
+    const invocation = getSpawnInvocation(command, args)
+    const child = spawn(invocation.command, invocation.args, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: false,
+    })
+
+    child.stdout.on('data', (chunk: Buffer) => {
+      process.stdout.write(chunk)
+      appendUpgradeLog(options.logPath, chunk.toString('utf-8'))
+    })
+
+    child.stderr.on('data', (chunk: Buffer) => {
+      process.stderr.write(chunk)
+      appendUpgradeLog(options.logPath, chunk.toString('utf-8'))
+    })
 
     child.on('error', reject)
     child.on('exit', (code, signal) => {
@@ -143,4 +239,20 @@ function execFileInherited(command: string, args: string[]): Promise<void> {
       reject(new Error(`${command} exited with ${signal ?? `code ${code ?? 1}`}`))
     })
   })
+}
+
+function getSpawnInvocation(command: string, args: string[]): { command: string; args: string[] } {
+  if (process.platform === 'win32' && /\.(?:cmd|bat)$/i.test(command)) {
+    return {
+      command: process.env.ComSpec ?? 'cmd.exe',
+      args: ['/d', '/s', '/c', [command, ...args].map(quoteWindowsCommandArg).join(' ')],
+    }
+  }
+
+  return { command, args }
+}
+
+function quoteWindowsCommandArg(value: string): string {
+  if (!/[\s"&()<>^|]/.test(value)) return value
+  return `"${value.replace(/"/g, '\\"')}"`
 }

@@ -1,6 +1,6 @@
 {
   "name": "pamh-protocol",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "PAMH MCP - Model Context Protocol server for PAMH",
   "type": "module",
   "license": "MIT",
@@ -44,7 +44,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "pamh-core": "^0.1.5",
+    "pamh-core": "^0.1.6",
     "zod": "^4.4.3"
   }
 }
