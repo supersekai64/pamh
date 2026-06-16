@@ -17,7 +17,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "release:check": "pnpm test && pnpm lint && pnpm build && pnpm format:check"
+    "pack:check": "node scripts/check-packed-manifests.mjs",
+    "release:check": "pnpm test && pnpm lint && pnpm build && pnpm pack:check && pnpm format:check"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

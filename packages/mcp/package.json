@@ -1,6 +1,6 @@
 {
   "name": "pamh-protocol",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "PAMH MCP - Model Context Protocol server for PAMH",
   "type": "module",
   "license": "MIT",

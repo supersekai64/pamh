@@ -21,3 +21,8 @@ Keep package publishing access set to allow 2FA or trusted publishing.
 4. Run the `npm publish` workflow from GitHub Actions.
 
 The workflow publishes packages in dependency order and skips versions that already exist on npm.
+
+The workflow uses `pnpm pack` / `pnpm publish` instead of `npm pack` /
+`npm publish` so workspace dependency ranges are rewritten to concrete npm
+versions in the published manifests. Keep `pnpm pack:check` in the release check
+before publishing; it fails if a packed package still contains `workspace:`.

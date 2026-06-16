@@ -74,11 +74,13 @@ jobs:
             fi
 
             if [[ "${{ inputs.dry_run }}" == "true" ]]; then
-              (cd "${dir}" && npm pack --dry-run)
+              pack_dir="$(mktemp -d)"
+              (cd "${dir}" && pnpm pack --pack-destination "${pack_dir}")
+              rm -rf "${pack_dir}"
               return
             fi
 
-            (cd "${dir}" && npm publish --access public --provenance)
+            (cd "${dir}" && pnpm publish --access public --provenance --no-git-checks)
           }
 
           if [[ "${{ inputs.package }}" == "all" ]]; then
