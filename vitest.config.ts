@@ -5,6 +5,7 @@ export default defineConfig({
   resolve: {
     alias: {
       'pamh-core': fileURLToPath(new URL('./packages/core/src/index.ts', import.meta.url)),
+      'pamh-protocol': fileURLToPath(new URL('./packages/mcp/src/index.ts', import.meta.url)),
     },
   },
   test: {
