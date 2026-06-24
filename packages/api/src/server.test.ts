@@ -531,7 +531,7 @@ describe('local API concepts', () => {
         return new Response(
           JSON.stringify({
             version: latestVersions[packageName],
-            repository: { url: 'git+https://github.com/supersekai64/pam.git' },
+            repository: { url: 'git+https://github.com/supersekai64/pamh.git' },
           }),
           {
             headers: { 'content-type': 'application/json' },

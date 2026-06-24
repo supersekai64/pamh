@@ -35,7 +35,7 @@ After each package exists on npm, open the package settings for
 publisher:
 
 - Publisher: GitHub Actions
-- Repository: `supersekai64/pam`
+- Repository: `supersekai64/pamh`
 - Workflow: `npm-publish.yml`
 - Environment: leave empty
 

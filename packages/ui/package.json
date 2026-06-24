@@ -6,12 +6,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/supersekai64/pam.git",
+    "url": "git+https://github.com/supersekai64/pamh.git",
     "directory": "packages/ui"
   },
-  "homepage": "https://github.com/supersekai64/pam#readme",
+  "homepage": "https://github.com/supersekai64/pamh#readme",
   "bugs": {
-    "url": "https://github.com/supersekai64/pam/issues"
+    "url": "https://github.com/supersekai64/pamh/issues"
   },
   "keywords": [
     "ai",
