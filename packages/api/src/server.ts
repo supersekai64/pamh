@@ -225,6 +225,7 @@ function resolveDefaultStaticDir(): string {
   const candidates = [
     resolvePublishedUiStaticDir(),
     join(SERVER_DIST_DIR, '../../ui/dist/public'),
+    join(SERVER_DIST_DIR, '../../pam-ui/dist/public'),
     join(SERVER_DIST_DIR, '../../@helloworlkd/pam-ui/dist/public'),
     join(SERVER_DIST_DIR, '../node_modules/@helloworlkd/pam-ui/dist/public'),
   ].filter((candidate): candidate is string => Boolean(candidate))
@@ -238,11 +239,17 @@ function resolveDefaultStaticDir(): string {
 
 function resolvePublishedUiStaticDir(): string | null {
   try {
-    const uiEntry = nodeRequire.resolve('@helloworlkd/pam-ui')
+    const uiEntry = resolvePackageImport('@helloworlkd/pam-ui')
     return join(dirname(uiEntry), 'public')
   } catch {
     return null
   }
+}
+
+function resolvePackageImport(specifier: string): string {
+  const resolved = import.meta.resolve(specifier)
+  if (resolved.startsWith('file:')) return fileURLToPath(resolved)
+  return resolved
 }
 
 const DEFAULT_STATIC_DIR = resolveDefaultStaticDir()

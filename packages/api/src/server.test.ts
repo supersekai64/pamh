@@ -524,8 +524,8 @@ describe('local API concepts', () => {
           '@helloworlkd/pam-core': '0.1.10',
           '@helloworlkd/pam-protocol': '0.1.10',
           '@helloworlkd/pam-ui': '1.0.0',
-          '@helloworlkd/pam-api': '0.1.16',
-          '@helloworlkd/pam-cli': '0.1.17',
+          '@helloworlkd/pam-api': '0.1.17',
+          '@helloworlkd/pam-cli': '0.1.18',
         }
 
         return new Response(
@@ -549,8 +549,8 @@ describe('local API concepts', () => {
 
       expect(versions.updateCount).toBe(0)
       expect(cli).toMatchObject({
-        currentVersion: '0.1.17',
-        latestVersion: '0.1.17',
+        currentVersion: '0.1.18',
+        latestVersion: '0.1.18',
         status: 'up-to-date',
       })
       expect(versions.packages.map((item) => item.name)).toEqual([

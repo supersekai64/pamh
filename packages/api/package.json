@@ -1,6 +1,6 @@
 {
   "name": "@helloworlkd/pam-api",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "description": "PAM API - Local HTTP API for PAM clients",
   "type": "module",
   "license": "MIT",
