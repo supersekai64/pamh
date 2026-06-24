@@ -521,11 +521,11 @@ describe('local API concepts', () => {
       if (url.startsWith('https://registry.npmjs.org/')) {
         const packageName = decodeURIComponent(url.split('/').at(-2) ?? '')
         const latestVersions: Record<string, string> = {
-          '@supersekai64/pam-core': '0.1.9',
-          '@supersekai64/pam-protocol': '0.1.10',
-          '@supersekai64/pam-ui': '1.0.0',
-          '@supersekai64/pam-api': '0.1.15',
-          '@supersekai64/pam-cli': '0.1.16',
+          '@helloworlkd/pam-core': '0.1.9',
+          '@helloworlkd/pam-protocol': '0.1.10',
+          '@helloworlkd/pam-ui': '1.0.0',
+          '@helloworlkd/pam-api': '0.1.15',
+          '@helloworlkd/pam-cli': '0.1.16',
         }
 
         return new Response(
@@ -545,7 +545,7 @@ describe('local API concepts', () => {
     const { baseUrl, close } = await startTestServer({ cwd: tempDir })
     try {
       const versions = await getJson<PackageVersions>(`${baseUrl}/api/package-versions`)
-      const cli = versions.packages.find((item) => item.name === '@supersekai64/pam-cli')
+      const cli = versions.packages.find((item) => item.name === '@helloworlkd/pam-cli')
 
       expect(versions.updateCount).toBe(0)
       expect(cli).toMatchObject({
@@ -554,11 +554,11 @@ describe('local API concepts', () => {
         status: 'up-to-date',
       })
       expect(versions.packages.map((item) => item.name)).toEqual([
-        '@supersekai64/pam-core',
-        '@supersekai64/pam-protocol',
-        '@supersekai64/pam-ui',
-        '@supersekai64/pam-api',
-        '@supersekai64/pam-cli',
+        '@helloworlkd/pam-core',
+        '@helloworlkd/pam-protocol',
+        '@helloworlkd/pam-ui',
+        '@helloworlkd/pam-api',
+        '@helloworlkd/pam-cli',
       ])
     } finally {
       globalThis.fetch = originalFetch

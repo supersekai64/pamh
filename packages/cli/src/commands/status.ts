@@ -6,7 +6,7 @@ import {
   findMemoryBase,
   listMemories,
   loadAutoCaptureConfig,
-} from '@supersekai64/pam-core'
+} from '@helloworlkd/pam-core'
 
 export function registerStatusCommand(program: Command) {
   program

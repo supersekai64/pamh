@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { initProjectMemory, listMemories, saveAutoCaptureConfig } from '@supersekai64/pam-core'
+import { initProjectMemory, listMemories, saveAutoCaptureConfig } from '@helloworlkd/pam-core'
 import {
   addMemory,
   compileMemoryContext,

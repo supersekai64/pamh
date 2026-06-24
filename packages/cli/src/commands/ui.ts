@@ -67,7 +67,7 @@ export function registerUiCommand(program: Command) {
         }
         if (isPamPackageMismatch(error)) {
           console.error(
-            'PAM UI cannot start because the installed @supersekai64/pam-cli, @supersekai64/pam-api, and @supersekai64/pam-core packages are incompatible.'
+            'PAM UI cannot start because the installed @helloworlkd/pam-cli, @helloworlkd/pam-api, and @helloworlkd/pam-core packages are incompatible.'
           )
           console.error(
             'Update all published PAM packages together, or use a workspace-linked CLI build.'
@@ -81,7 +81,7 @@ export function registerUiCommand(program: Command) {
 }
 
 async function startUiServer(host: string, port: number) {
-  const { startLocalApiServer } = await import('@supersekai64/pam-api')
+  const { startLocalApiServer } = await import('@helloworlkd/pam-api')
   return startLocalApiServer({
     cwd: process.cwd(),
     host,
@@ -93,7 +93,7 @@ function isPamPackageMismatch(error: unknown): boolean {
   return (
     error instanceof SyntaxError &&
     error.message.toLowerCase().includes('requested module') &&
-    error.message.includes('@supersekai64/pam-core') &&
+    error.message.includes('@helloworlkd/pam-core') &&
     error.message.toLowerCase().includes('does not provide an export named')
   )
 }

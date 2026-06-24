@@ -1,5 +1,5 @@
 import { Command } from 'commander'
-import { restoreMemory, getProjectMemoryPath } from '@supersekai64/pam-core'
+import { restoreMemory, getProjectMemoryPath } from '@helloworlkd/pam-core'
 
 export function registerRestoreCommand(program: Command) {
   program

@@ -1,5 +1,5 @@
 {
-  "name": "@supersekai64/pam-core",
+  "name": "@helloworlkd/pam-core",
   "version": "0.1.9",
   "description": "PAM Core - Memory storage, indexing and search",
   "type": "module",

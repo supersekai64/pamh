@@ -3,7 +3,7 @@ import { Command } from 'commander'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createMemory, initProjectMemory, readMemory, restoreMemory } from '@supersekai64/pam-core'
+import { createMemory, initProjectMemory, readMemory, restoreMemory } from '@helloworlkd/pam-core'
 
 import { registerDeleteCommand } from './delete.js'
 

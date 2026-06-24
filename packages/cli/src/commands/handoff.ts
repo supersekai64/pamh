@@ -5,7 +5,7 @@ import {
   getOpenHandoff,
   listHandoffs,
   getProjectMemoryPath,
-} from '@supersekai64/pam-core'
+} from '@helloworlkd/pam-core'
 
 export function registerHandoffCommand(program: Command) {
   const handoff = program.command('handoff').description('Cross-agent context transfer')

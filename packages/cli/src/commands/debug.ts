@@ -3,7 +3,7 @@ import {
   getMemoryDebugStatus,
   getProjectMemoryPath,
   setMemoryDebugMode,
-} from '@supersekai64/pam-core'
+} from '@helloworlkd/pam-core'
 
 interface DebugOptions {
   agent?: string

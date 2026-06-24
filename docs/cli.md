@@ -16,7 +16,7 @@ pam upgrade
 ```
 
 Update the global PAM CLI. The command starts a small updater process, stops
-running PAM UI/MCP services, then runs `npm install -g @supersekai64/pam-cli@latest`.
+running PAM UI/MCP services, then runs `npm install -g @helloworlkd/pam-cli@latest`.
 This is the recommended update path on Windows because native SQLite files can
 stay locked while PAM services are running.
 

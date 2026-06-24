@@ -69,7 +69,7 @@ async function main(): Promise<void> {
 
 function parseArgs(args: string[]): UpgradeOptions {
   const options: UpgradeOptions = {
-    packageSpec: '@supersekai64/pam-cli@latest',
+    packageSpec: '@helloworlkd/pam-cli@latest',
     npmCommand: process.platform === 'win32' ? 'npm.cmd' : 'npm',
     waitMs: 1000,
     dryRun: false,

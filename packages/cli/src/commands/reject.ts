@@ -1,5 +1,5 @@
 import { Command } from 'commander'
-import { rejectMemory, getProjectMemoryPath } from '@supersekai64/pam-core'
+import { rejectMemory, getProjectMemoryPath } from '@helloworlkd/pam-core'
 
 export function registerRejectCommand(program: Command) {
   program

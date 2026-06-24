@@ -1,5 +1,5 @@
 {
-  "name": "@supersekai64/pam-cli",
+  "name": "@helloworlkd/pam-cli",
   "version": "0.1.16",
   "description": "PAM CLI - Command line interface for PAM",
   "type": "module",
@@ -51,9 +51,9 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "commander": "^15.0.0",
     "zod": "^4.4.3",
-    "@supersekai64/pam-core": "workspace:^",
-    "@supersekai64/pam-protocol": "workspace:^",
-    "@supersekai64/pam-api": "workspace:^"
+    "@helloworlkd/pam-core": "workspace:^",
+    "@helloworlkd/pam-protocol": "workspace:^",
+    "@helloworlkd/pam-api": "workspace:^"
   },
   "devDependencies": {
     "@types/node": "^25.9.3"

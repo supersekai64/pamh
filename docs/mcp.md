@@ -10,11 +10,11 @@ Running the default project initializer configures best-effort MCP and agent ins
 pam init
 ```
 
-For projects that already use npm/package.json, installing `@supersekai64/pam-cli` as a
+For projects that already use npm/package.json, installing `@helloworlkd/pam-cli` as a
 direct local dependency also runs this bootstrap automatically:
 
 ```bash
-npm install -D @supersekai64/pam-cli
+npm install -D @helloworlkd/pam-cli
 ```
 
 Use `PAM_SKIP_PROJECT_INIT=1` to disable the postinstall bootstrap.

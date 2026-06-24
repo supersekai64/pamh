@@ -22,7 +22,7 @@ describe('postinstall project bootstrap', () => {
     await rm(tempDir, { recursive: true, force: true })
   })
 
-  it('waits for npm to persist a direct @supersekai64/pam-cli dependency before initializing', async () => {
+  it('waits for npm to persist a direct @helloworlkd/pam-cli dependency before initializing', async () => {
     const child = spawn(process.execPath, [postinstallPath, '--deferred', tempDir], {
       env: {
         ...process.env,
@@ -33,7 +33,7 @@ describe('postinstall project bootstrap', () => {
     })
 
     await new Promise((resolve) => setTimeout(resolve, 80))
-    await writeProjectPackageJson({ devDependencies: { '@supersekai64/pam-cli': '^0.1.14' } })
+    await writeProjectPackageJson({ devDependencies: { '@helloworlkd/pam-cli': '^0.1.14' } })
 
     const result = await waitForExit(child)
 
@@ -61,8 +61,8 @@ describe('postinstall project bootstrap', () => {
   }
 
   async function prepareInstalledPackageFixture() {
-    const cliScriptsDir = join(tempDir, 'node_modules', '@supersekai64/pam-cli', 'scripts')
-    const coreDir = join(tempDir, 'node_modules', '@supersekai64/pam-core')
+    const cliScriptsDir = join(tempDir, 'node_modules', '@helloworlkd/pam-cli', 'scripts')
+    const coreDir = join(tempDir, 'node_modules', '@helloworlkd/pam-core')
     await mkdir(cliScriptsDir, { recursive: true })
     await mkdir(coreDir, { recursive: true })
 
@@ -72,7 +72,7 @@ describe('postinstall project bootstrap', () => {
     await writeFile(
       join(coreDir, 'package.json'),
       JSON.stringify(
-        { name: '@supersekai64/pam-core', type: 'module', main: './index.js' },
+        { name: '@helloworlkd/pam-core', type: 'module', main: './index.js' },
         null,
         2
       ),

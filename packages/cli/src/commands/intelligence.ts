@@ -13,7 +13,7 @@ import {
   seedIntelligenceEvaluationDataset,
   type DistillationProposal,
   type MemoryRecommendation,
-} from '@supersekai64/pam-core'
+} from '@helloworlkd/pam-core'
 
 interface StoreOptions {
   project?: boolean

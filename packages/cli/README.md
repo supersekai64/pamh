@@ -5,7 +5,7 @@ CLI for persistent, portable, model-independent AI memory.
 ## Installation
 
 ```bash
-npm install -g @supersekai64/pam-cli
+npm install -g @helloworlkd/pam-cli
 ```
 
 This installs the `pam` command.
@@ -23,7 +23,7 @@ For automatic project bootstrap:
 
 ```bash
 cd your-project
-npm install -D @supersekai64/pam-cli
+npm install -D @helloworlkd/pam-cli
 ```
 
 Local install creates `.ai-memory/` and supported agent/IDE integration files.

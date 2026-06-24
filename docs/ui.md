@@ -67,14 +67,14 @@ Browser UI
 Local HTTP API (127.0.0.1)
     |
     v
-@supersekai64/pam-core
+@helloworlkd/pam-core
     |
     v
 Markdown + SQLite + vector index
 ```
 
 The UI is static and does not own persistence logic. All writes go through the
-local API, and the API delegates to `@supersekai64/pam-core`.
+local API, and the API delegates to `@helloworlkd/pam-core`.
 
 ## Browser Smoke Test
 
@@ -94,8 +94,8 @@ memory approval compatibility, context preview, and graph metrics.
 Desktop apps and IDE extensions should live in separate repositories. They can
 either:
 
-- call the same local HTTP API exposed by `@supersekai64/pam-api`, or
-- embed `@supersekai64/pam-core` directly when a local Node runtime is appropriate.
+- call the same local HTTP API exposed by `@helloworlkd/pam-api`, or
+- embed `@helloworlkd/pam-core` directly when a local Node runtime is appropriate.
 
 The recommended default is to use the local HTTP API so clients stay thin and
 tool-agnostic.

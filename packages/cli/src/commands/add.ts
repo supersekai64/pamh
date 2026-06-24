@@ -4,7 +4,7 @@ import {
   getProjectMemoryPath,
   MEMORY_TYPES,
   assertSalience,
-} from '@supersekai64/pam-core'
+} from '@helloworlkd/pam-core'
 
 export function registerAddCommand(program: Command) {
   program

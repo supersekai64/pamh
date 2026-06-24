@@ -1,5 +1,5 @@
 import { Command } from 'commander'
-import { indexAllMemories, getProjectMemoryPath } from '@supersekai64/pam-core'
+import { indexAllMemories, getProjectMemoryPath } from '@helloworlkd/pam-core'
 
 export function registerIndexCommand(program: Command) {
   const index = program.command('index').description('Index management commands')

@@ -1,5 +1,5 @@
 import { Command } from 'commander'
-import { forgetSweep, getProjectMemoryPath, type DecayConfig } from '@supersekai64/pam-core'
+import { forgetSweep, getProjectMemoryPath, type DecayConfig } from '@helloworlkd/pam-core'
 
 export function registerDecayCommand(program: Command) {
   const decay = program.command('decay').description('Memory decay management')

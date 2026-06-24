@@ -5,7 +5,7 @@ import {
   initProjectMemory,
   listMemories,
   readMemory,
-} from '@supersekai64/pam-core'
+} from '@helloworlkd/pam-core'
 
 export function registerSmokeTestCommand(program: Command) {
   const smoke = program.command('smoke-test').description('Run PAM end-to-end smoke tests')

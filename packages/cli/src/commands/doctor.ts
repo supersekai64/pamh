@@ -8,7 +8,7 @@ import {
   findMemoryBase,
   getProjectMemoryPath,
   scanMemoryFileIssues,
-} from '@supersekai64/pam-core'
+} from '@helloworlkd/pam-core'
 
 export function registerDoctorCommand(program: Command) {
   const doctor = program.command('doctor').description('Diagnose memory system health')

@@ -30,20 +30,20 @@ See [docs/concepts.md](concepts.md#memory-discovery) for details.
 
 ## Packages
 
-### @supersekai64/pam-core
+### @helloworlkd/pam-core
 
 Responsible for storage, indexing, search, import, export, context compilation,
 semantic search, lifecycle hook capture, raw exchange capture, theme
 compilation, contradiction-aware capture, and deterministic intelligence
 analysis. It has no CLI or MCP dependency.
 
-### @supersekai64/pam-cli
+### @helloworlkd/pam-cli
 
 Command-line interface published to npm. Depends on core, API, and the
-`@supersekai64/pam-protocol` package; `pam server start` delegates to that shared MCP
+`@helloworlkd/pam-protocol` package; `pam server start` delegates to that shared MCP
 server implementation.
 
-### @supersekai64/pam-api
+### @helloworlkd/pam-api
 
 Local HTTP API for human-facing clients. It binds to `127.0.0.1` by default,
 uses a per-instance token for mutable requests, and delegates persistence plus
@@ -51,7 +51,7 @@ context source selection to core. The API owns UI-facing projections such as
 concept graphs and evidence views. Future desktop apps and IDE extensions can
 use this API boundary from separate repositories.
 
-### @supersekai64/pam-ui
+### @helloworlkd/pam-ui
 
 Static local web UI served by the local API server. It does not own data or contain persistence logic.
 

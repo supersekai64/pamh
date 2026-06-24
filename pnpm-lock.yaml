@@ -37,27 +37,27 @@ importers:
 
   packages/api:
     dependencies:
-      '@supersekai64/pam-core':
+      '@helloworlkd/pam-core':
         specifier: workspace:^
         version: link:../core
-      '@supersekai64/pam-ui':
+      '@helloworlkd/pam-ui':
         specifier: workspace:^
         version: link:../ui
 
   packages/cli:
     dependencies:
+      '@helloworlkd/pam-api':
+        specifier: workspace:^
+        version: link:../api
+      '@helloworlkd/pam-core':
+        specifier: workspace:^
+        version: link:../core
+      '@helloworlkd/pam-protocol':
+        specifier: workspace:^
+        version: link:../mcp
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(zod@4.4.3)
-      '@supersekai64/pam-api':
-        specifier: workspace:^
-        version: link:../api
-      '@supersekai64/pam-core':
-        specifier: workspace:^
-        version: link:../core
-      '@supersekai64/pam-protocol':
-        specifier: workspace:^
-        version: link:../mcp
       commander:
         specifier: ^15.0.0
         version: 15.0.0
@@ -102,12 +102,12 @@ importers:
 
   packages/mcp:
     dependencies:
+      '@helloworlkd/pam-core':
+        specifier: workspace:^
+        version: link:../core
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(zod@4.4.3)
-      '@supersekai64/pam-core':
-        specifier: workspace:^
-        version: link:../core
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -120,7 +120,7 @@ importers:
       '@fontsource-variable/inter':
         specifier: ^5.2.8
         version: 5.2.8
-      '@supersekai64/pam-core':
+      '@helloworlkd/pam-core':
         specifier: workspace:^
         version: link:../core
       '@tabler/icons-react':

@@ -50,14 +50,14 @@ list/search requests.
 If `pam ui` or another command fails with an ESM import error such as:
 
 ```text
-SyntaxError: The requested module '@supersekai64/pam-core' does not provide an export named 'extractConceptCandidates'
+SyntaxError: The requested module '@helloworlkd/pam-core' does not provide an export named 'extractConceptCandidates'
 ```
 
-the installed packages are out of sync. Upgrade the CLI so `@supersekai64/pam-cli`, `@supersekai64/pam-api`, and `@supersekai64/pam-core`
+the installed packages are out of sync. Upgrade the CLI so `@helloworlkd/pam-cli`, `@helloworlkd/pam-api`, and `@helloworlkd/pam-core`
 resolve to compatible versions:
 
 ```bash
-npm install -g @supersekai64/pam-cli@latest
+npm install -g @helloworlkd/pam-cli@latest
 ```
 
 For a workspace checkout, run `pnpm install && pnpm build && pnpm link:cli` after changing package

@@ -4,7 +4,7 @@ import {
   updateMemory,
   redactContent,
   getProjectMemoryPath,
-} from '@supersekai64/pam-core'
+} from '@helloworlkd/pam-core'
 
 export function registerRedactCommand(program: Command) {
   program

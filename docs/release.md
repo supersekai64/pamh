@@ -10,19 +10,19 @@ workflow.
 
 Before the first publish, create a GitHub Actions secret named `NPM_TOKEN` with
 a granular npm access token that can publish public packages under the
-`@supersekai64` scope. The token owner must have publish rights for that npm
+`@helloworlkd` scope. The token owner must have publish rights for that npm
 user or organization scope.
 
-The npm scope must also exist before publishing. If npm returns
-`Scope not found` for `@supersekai64/pam-core`, create the `supersekai64`
-organization on npm first, or rename every package to use the npm account scope
-that actually owns the token.
+The npm scope must also exist before publishing. This project publishes under
+the npm account scope `@helloworlkd`; use a token from that account, or rename
+every package to use the npm account or organization scope that actually owns
+the token.
 
 When creating the token on npm:
 
 - enable `Bypass two-factor authentication`;
 - grant `Read and write` package permissions;
-- select the `@supersekai64` scope or all packages the account can publish;
+- select the `@helloworlkd` scope or all packages the account can publish;
 - avoid IP allowlists for GitHub-hosted runners unless the ranges are maintained
   deliberately.
 
@@ -30,8 +30,8 @@ A token without 2FA bypass will fail in GitHub Actions with `EOTP` because npm
 will request a one-time password during `npm publish`.
 
 After each package exists on npm, open the package settings for
-`@supersekai64/pam-core`, `@supersekai64/pam-ui`, `@supersekai64/pam-api`,
-`@supersekai64/pam-protocol`, and `@supersekai64/pam-cli`, then add this trusted
+`@helloworlkd/pam-core`, `@helloworlkd/pam-ui`, `@helloworlkd/pam-api`,
+`@helloworlkd/pam-protocol`, and `@helloworlkd/pam-cli`, then add this trusted
 publisher:
 
 - Publisher: GitHub Actions

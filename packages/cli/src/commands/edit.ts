@@ -1,5 +1,5 @@
 import { Command } from 'commander'
-import { updateMemory, getProjectMemoryPath, MEMORY_TYPES } from '@supersekai64/pam-core'
+import { updateMemory, getProjectMemoryPath, MEMORY_TYPES } from '@helloworlkd/pam-core'
 
 export function registerEditCommand(program: Command) {
   program

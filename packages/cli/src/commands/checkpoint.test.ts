@@ -3,7 +3,7 @@ import { Command } from 'commander'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { initProjectMemory, listMemories } from '@supersekai64/pam-core'
+import { initProjectMemory, listMemories } from '@helloworlkd/pam-core'
 
 import { registerCheckpointCommand } from './checkpoint.js'
 

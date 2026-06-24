@@ -23,7 +23,7 @@ export function registerUpgradeCommand(program: Command) {
   const upgrade = program
     .command('upgrade')
     .description('Update the global PAM CLI without leaving running services locked')
-    .option('--package <spec>', 'Package spec to install', '@supersekai64/pam-cli@latest')
+    .option('--package <spec>', 'Package spec to install', '@helloworlkd/pam-cli@latest')
     .option('--npm <command>', 'npm executable to use')
     .option('--dry-run', 'Show the update steps without installing')
     .action((options: UpgradeCommandOptions) => {
@@ -31,7 +31,7 @@ export function registerUpgradeCommand(program: Command) {
       const startedAt = new Date().toISOString()
       const paths = getUpgradeStatePaths(runId)
       const updaterPath = join(CLI_DIST_DIR, '../self-upgrade.js')
-      const args = [updaterPath, '--package', options.package ?? '@supersekai64/pam-cli@latest']
+      const args = [updaterPath, '--package', options.package ?? '@helloworlkd/pam-cli@latest']
 
       if (options.npm) args.push('--npm', options.npm)
       if (options.dryRun) args.push('--dry-run')
@@ -54,7 +54,7 @@ export function registerUpgradeCommand(program: Command) {
         runId,
         phase: 'queued',
         message: 'Updater process started in the background.',
-        packageSpec: options.package ?? '@supersekai64/pam-cli@latest',
+        packageSpec: options.package ?? '@helloworlkd/pam-cli@latest',
         npmCommand: options.npm ?? (process.platform === 'win32' ? 'npm.cmd' : 'npm'),
         startedAt,
         updatedAt: startedAt,

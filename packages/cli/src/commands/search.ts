@@ -6,7 +6,7 @@ import {
   indexAllMemories,
   listMemories,
   readMemory,
-} from '@supersekai64/pam-core'
+} from '@helloworlkd/pam-core'
 
 export function registerSearchCommand(program: Command) {
   program

@@ -1,5 +1,5 @@
 {
-  "name": "@supersekai64/pam-protocol",
+  "name": "@helloworlkd/pam-protocol",
   "version": "0.1.10",
   "description": "PAM MCP - Model Context Protocol server for PAM",
   "type": "module",
@@ -45,6 +45,6 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.4.3",
-    "@supersekai64/pam-core": "workspace:^"
+    "@helloworlkd/pam-core": "workspace:^"
   }
 }

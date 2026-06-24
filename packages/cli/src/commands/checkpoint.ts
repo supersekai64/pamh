@@ -1,6 +1,6 @@
 import { Command } from 'commander'
 
-import { memoryCheckpoint } from '@supersekai64/pam-protocol'
+import { memoryCheckpoint } from '@helloworlkd/pam-protocol'
 
 function collect(value: string, previous: string[] = []) {
   return [...previous, value]

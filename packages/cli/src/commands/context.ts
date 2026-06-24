@@ -1,5 +1,5 @@
 import { Command } from 'commander'
-import { getProjectMemoryPath, compileContext, writeCompiledContext } from '@supersekai64/pam-core'
+import { getProjectMemoryPath, compileContext, writeCompiledContext } from '@helloworlkd/pam-core'
 
 export function registerContextCommand(program: Command) {
   program

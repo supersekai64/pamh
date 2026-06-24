@@ -10,12 +10,12 @@
 **From npm** (recommended for users):
 
 ```bash
-npm install -g @supersekai64/pam-cli
+npm install -g @helloworlkd/pam-cli
 ```
 
 This installs the `pam` command globally.
 
-If npm stays quiet during the first install, use `npm install -g @supersekai64/pam-cli --loglevel=info` to show dependency progress.
+If npm stays quiet during the first install, use `npm install -g @helloworlkd/pam-cli --loglevel=info` to show dependency progress.
 
 On Windows, stop any running PAM UI or MCP server before updating the global
 package. Native SQLite files can stay locked while `pam ui` or
@@ -29,10 +29,10 @@ For a project-local install that bootstraps PAM automatically:
 
 ```bash
 cd your-project
-npm install -D @supersekai64/pam-cli
+npm install -D @helloworlkd/pam-cli
 ```
 
-When `@supersekai64/pam-cli` is installed as a direct project dependency, its postinstall
+When `@helloworlkd/pam-cli` is installed as a direct project dependency, its postinstall
 script initializes `.ai-memory/` and writes supported agent/IDE integration
 files. Set `PAM_SKIP_PROJECT_INIT=1` before install to opt out.
 
@@ -74,7 +74,7 @@ pam init
 
 This creates `.ai-memory/` in the current directory and auto-configures supported project-level agent integrations. Use `pam init --no-integrations` for memory storage only.
 
-If `@supersekai64/pam-cli` was installed locally with `npm install -D @supersekai64/pam-cli`, npm already
+If `@helloworlkd/pam-cli` was installed locally with `npm install -D @helloworlkd/pam-cli`, npm already
 runs this project bootstrap during postinstall. Re-run `pam init` whenever
 you want to refresh integration files.
 

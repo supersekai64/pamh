@@ -39,12 +39,12 @@ context compilation.
 **From npm** (recommended for users):
 
 ```bash
-npm install -g @supersekai64/pam-cli
+npm install -g @helloworlkd/pam-cli
 ```
 
 This installs the `pam` command globally.
 
-If npm stays quiet during the first install, use `npm install -g @supersekai64/pam-cli --loglevel=info` to show dependency progress.
+If npm stays quiet during the first install, use `npm install -g @helloworlkd/pam-cli --loglevel=info` to show dependency progress.
 
 On Windows, stop any running PAM UI or MCP server before updating the global
 package. Native SQLite files can stay locked while `pam ui` or
@@ -58,7 +58,7 @@ To make PAM part of a specific project that already uses npm/package.json,
 install it locally from that project root:
 
 ```bash
-npm install -D @supersekai64/pam-cli
+npm install -D @helloworlkd/pam-cli
 ```
 
 Local installs bootstrap the project automatically: PAM creates `.ai-memory/`
@@ -96,7 +96,7 @@ pam init
 
 This creates `.ai-memory/` and configures agent integrations automatically.
 
-If you installed `@supersekai64/pam-cli` locally in the project with `npm install -D @supersekai64/pam-cli`,
+If you installed `@helloworlkd/pam-cli` locally in the project with `npm install -D @helloworlkd/pam-cli`,
 this step is performed automatically by npm postinstall.
 
 ### 2. Configure your IDE or AI agent

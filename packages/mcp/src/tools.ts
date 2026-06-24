@@ -26,7 +26,7 @@ import {
   type Memory,
   type DecayConfig,
   type HookEventType,
-} from '@supersekai64/pam-core'
+} from '@helloworlkd/pam-core'
 
 export interface McpToolContext {
   cwd: string

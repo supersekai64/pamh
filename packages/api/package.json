@@ -1,5 +1,5 @@
 {
-  "name": "@supersekai64/pam-api",
+  "name": "@helloworlkd/pam-api",
   "version": "0.1.15",
   "description": "PAM API - Local HTTP API for PAM clients",
   "type": "module",
@@ -42,7 +42,7 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "@supersekai64/pam-core": "workspace:^",
-    "@supersekai64/pam-ui": "workspace:^"
+    "@helloworlkd/pam-core": "workspace:^",
+    "@helloworlkd/pam-ui": "workspace:^"
   }
 }

@@ -6,7 +6,7 @@ import {
   getProjectMemoryPath,
   assertMemoryType,
   assertSalience,
-} from '@supersekai64/pam-core'
+} from '@helloworlkd/pam-core'
 
 export function registerSupersedeCommand(program: Command) {
   const supersede = program.command('supersede').description('Memory supersession management')

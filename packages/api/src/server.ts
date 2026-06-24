@@ -47,7 +47,7 @@ import {
   type Memory,
   type SearchResult,
   type UpdateMemoryInput,
-} from '@supersekai64/pam-core'
+} from '@helloworlkd/pam-core'
 
 export interface LocalApiServerOptions {
   cwd?: string
@@ -224,8 +224,8 @@ const nodeRequire = createRequire(import.meta.url)
 function resolveDefaultStaticDir(): string {
   const candidates = [
     join(SERVER_DIST_DIR, '../../ui/dist/public'),
-    join(SERVER_DIST_DIR, '../../@supersekai64/pam-ui/dist/public'),
-    join(SERVER_DIST_DIR, '../node_modules/@supersekai64/pam-ui/dist/public'),
+    join(SERVER_DIST_DIR, '../../@helloworlkd/pam-ui/dist/public'),
+    join(SERVER_DIST_DIR, '../node_modules/@helloworlkd/pam-ui/dist/public'),
   ]
 
   for (const candidate of candidates) {
@@ -244,15 +244,15 @@ const SESSION_HEADER = 'x-pam-session'
 const PACKAGE_VERSION_CACHE_TTL_MS = 10 * 60 * 1000
 const NPM_VERSION_TIMEOUT_MS = 3000
 const PACKAGE_VERSION_SPECS: PackageVersionSpec[] = [
-  { name: '@supersekai64/pam-core', label: 'Core', workspaceManifest: '../../core/package.json' },
+  { name: '@helloworlkd/pam-core', label: 'Core', workspaceManifest: '../../core/package.json' },
   {
-    name: '@supersekai64/pam-protocol',
+    name: '@helloworlkd/pam-protocol',
     label: 'Protocol',
     workspaceManifest: '../../mcp/package.json',
   },
-  { name: '@supersekai64/pam-ui', label: 'UI', workspaceManifest: '../../ui/package.json' },
-  { name: '@supersekai64/pam-api', label: 'API', workspaceManifest: '../package.json' },
-  { name: '@supersekai64/pam-cli', label: 'CLI', workspaceManifest: '../../cli/package.json' },
+  { name: '@helloworlkd/pam-ui', label: 'UI', workspaceManifest: '../../ui/package.json' },
+  { name: '@helloworlkd/pam-api', label: 'API', workspaceManifest: '../package.json' },
+  { name: '@helloworlkd/pam-cli', label: 'CLI', workspaceManifest: '../../cli/package.json' },
 ]
 
 let packageVersionsCache: {
@@ -404,7 +404,7 @@ async function handleApiRequest(
       await writeRuntimeConfig(basePath, parsed.value.runtime)
       applyRuntimeConfig(parsed.value.runtime)
       await setMemoryDebugMode(basePath, parsed.value.runtime.debug, {
-        agent: '@supersekai64/pam-ui',
+        agent: '@helloworlkd/pam-ui',
       })
     }
 

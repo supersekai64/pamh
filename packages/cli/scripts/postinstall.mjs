@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const PACKAGE_NAME = '@supersekai64/pam-cli'
+const PACKAGE_NAME = '@helloworlkd/pam-cli'
 const DEFAULT_DEFER_TIMEOUT_MS = 15_000
 const DEFAULT_DEFER_POLL_MS = 500
 
@@ -70,7 +70,7 @@ function scheduleDeferredInit(projectPath) {
 async function initializeProject(projectPath) {
   try {
     const { configureProjectIntegrations, initAutoCaptureConfig, initProjectMemory } =
-      await import('@supersekai64/pam-core')
+      await import('@helloworlkd/pam-core')
     const memoryPath = await initProjectMemory(projectPath)
     await initAutoCaptureConfig(memoryPath)
     const { results } = await configureProjectIntegrations(projectPath)

@@ -4,7 +4,7 @@ import {
   listMemories,
   readMemory,
   getProjectMemoryPath,
-} from '@supersekai64/pam-core'
+} from '@helloworlkd/pam-core'
 
 export function registerSemanticCommand(program: Command) {
   program
