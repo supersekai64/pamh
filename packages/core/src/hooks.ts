@@ -4,8 +4,9 @@ import { join } from 'node:path'
 import { mkdir } from 'node:fs/promises'
 import { generateId } from './id.js'
 import { loadAutoCaptureConfig } from './auto-capture.js'
-import { createMemory, listMemories } from './storage.js'
+import { createMemory, indexAllMemories, listMemories } from './storage.js'
 import { redactContent } from './redaction.js'
+import { MemoryIndex } from './indexer.js'
 import type { MemoryType } from './types.js'
 
 // Lifecycle hook event types
@@ -61,10 +62,12 @@ export async function recordHookEvent(
   const logFile = join(observationsDir, `${timestamp.split('T')[0]}.jsonl`)
   await writeFile(logFile, JSON.stringify(fullEvent) + '\n', { flag: 'a', encoding: 'utf-8' })
 
-  await proposeDurableMemoryFromHookEvent(basePath, {
-    ...fullEvent,
-    data: event.data ?? {},
-  })
+  if (event.type === 'session-start' && event.session_id) {
+    await recoverInterruptedSessions(basePath, event.session_id)
+  }
+
+  await createRawExchangeMemoryFromHookEvent(basePath, fullEvent)
+  await proposeDurableMemoryFromHookEvent(basePath, fullEvent)
 
   // If it's a session-end event, create a session summary
   if (event.type === 'session-end' && event.session_id) {
@@ -72,6 +75,131 @@ export async function recordHookEvent(
   }
 
   return fullEvent
+}
+
+async function createRawExchangeMemoryFromHookEvent(
+  basePath: string,
+  event: HookEvent
+): Promise<void> {
+  const text = getPromptText(event.data)
+  if (!text) return
+
+  const config = await loadAutoCaptureConfig(basePath)
+  if (config.mode === 'manual') return
+
+  const status = config.mode === 'auto' ? 'active' : 'proposed'
+  const role = getExchangeRole(event)
+  const relevantIds = await findRelevantMemoryIds(basePath, text)
+
+  await createMemory(basePath, {
+    type: 'exchange',
+    scope: 'project',
+    status,
+    source: event.agent ? `hook-exchange:${event.agent}` : 'hook-exchange',
+    tags: [
+      'raw-exchange',
+      `role-${role}`,
+      optionalSlug(event.agent),
+      event.session_id ? `session-${slug(event.session_id)}` : undefined,
+    ].filter((tag): tag is string => Boolean(tag)),
+    salience: 0.34,
+    source_ids: relevantIds,
+    content: formatRawExchangeMemory(event, role, text, relevantIds),
+  })
+}
+
+async function findRelevantMemoryIds(basePath: string, text: string): Promise<string[]> {
+  await indexAllMemories(basePath)
+  const index = new MemoryIndex(basePath)
+  try {
+    return index
+      .search({ query: text, limit: 8, natural: true })
+      .filter((memory) => memory.type !== 'exchange')
+      .map((memory) => memory.id)
+  } finally {
+    index.close()
+  }
+}
+
+function formatRawExchangeMemory(
+  event: HookEvent,
+  role: string,
+  text: string,
+  relevantIds: string[]
+): string {
+  const simplified = simplifyExchangeText(text)
+
+  return [
+    'Raw conversation exchange captured automatically by PAM.',
+    '',
+    '## Simplified',
+    '',
+    `- Role: ${role}`,
+    `- Summary: ${simplified.summary}`,
+    `- Signal: ${simplified.signal}`,
+    relevantIds.length
+      ? `- Relevant memory IDs before answer: ${relevantIds.join(', ')}`
+      : '- Relevant memory IDs before answer: none',
+    '- Preservation: the original redacted exchange is kept below for auditability.',
+    '',
+    '## Raw Exchange',
+    '',
+    `Hook event: ${event.id}`,
+    `Role: ${role}`,
+    `Agent: ${event.agent ?? 'unknown'}`,
+    `Session: ${event.session_id ?? 'unknown'}`,
+    `Timestamp: ${event.timestamp}`,
+    relevantIds.length
+      ? `Relevant memory IDs before answer: ${relevantIds.join(', ')}`
+      : 'Relevant memory IDs before answer: none',
+    '',
+    'Content:',
+    text,
+  ].join('\n')
+}
+
+function simplifyExchangeText(text: string): { summary: string; signal: string } {
+  const normalized = text.replace(/\s+/g, ' ').trim()
+  const summary = truncateSentence(normalized, 240) || 'No text content.'
+  const signal = inferExchangeSignal(normalized)
+
+  return { summary, signal }
+}
+
+function inferExchangeSignal(text: string): string {
+  const normalized = normalizeText(text)
+
+  if (/\?$/.test(text.trim())) {
+    return 'question'
+  }
+  if (
+    /\b(always|never|must|should|rule|automatically|automatic|toujours|jamais|doit|devrait|regle|automatique)\b/.test(
+      normalized
+    )
+  ) {
+    return 'instruction-like'
+  }
+  if (
+    /\b(decide|decided|decision|choose|chosen|adopt|use|choisir|choisi|utiliser)\b/.test(normalized)
+  ) {
+    return 'decision-like'
+  }
+  if (/\b(issue|bug|error|fail|failure|problem|probleme|erreur|echec)\b/.test(normalized)) {
+    return 'issue-like'
+  }
+  return 'conversation'
+}
+
+function truncateSentence(value: string, limit: number): string {
+  if (value.length <= limit) return value
+  return `${value.slice(0, limit).trim()}...`
+}
+
+function getExchangeRole(event: HookEvent): string {
+  const role = event.data.role
+  if (typeof role === 'string' && role.trim()) return slug(role)
+  if (event.type === 'user-prompt') return 'user'
+  return slug(event.type)
 }
 
 function redactHookData(value: unknown): Record<string, unknown> {
@@ -189,7 +317,7 @@ function inferDurableMemoriesFromPrompt(text: string): HookMemoryProposal[] {
       tags: ['memory-capture', 'workflow'],
       salience: 0.82,
       content:
-        'When the user states that a durable rule, preference, or workflow expectation should have been remembered automatically, capture it as a proposed project memory without waiting for another explicit request.',
+        'When the user states that a durable rule, preference, or workflow expectation should have been remembered automatically, capture it as a durable project memory without waiting for another explicit request.',
     })
   }
 
@@ -263,7 +391,94 @@ async function createSessionSummary(basePath: string, sessionId: string): Promis
       `Started: ${summary.started_at ?? 'unknown'}`,
       `Ended: ${summary.ended_at ?? 'unknown'}`,
       '',
-      'This memory was generated from lifecycle event counts only; raw prompt transcripts are kept out of durable memory.',
+      'This session memory was generated from lifecycle event counts only; textual prompt hooks are stored separately as redacted exchange memories with simplified and raw sections.',
+    ].join('\n'),
+  })
+}
+
+async function recoverInterruptedSessions(
+  basePath: string,
+  currentSessionId: string
+): Promise<void> {
+  const events = await getSessionEvents(basePath)
+  const grouped = new Map<string, HookEvent[]>()
+
+  for (const event of events) {
+    if (!event.session_id || event.session_id === currentSessionId) continue
+    grouped.set(event.session_id, [...(grouped.get(event.session_id) ?? []), event])
+  }
+
+  if (grouped.size === 0) return
+
+  const memories = await listMemories(basePath)
+  for (const [sessionId, sessionEvents] of grouped.entries()) {
+    if (!isSafeFileId(sessionId)) continue
+    if (sessionEvents.some((event) => event.type === 'session-end')) continue
+    if (!isMeaningfulSession(sessionEvents)) continue
+
+    const sessionTag = `session-${slug(sessionId)}`
+    const alreadySummarized = memories.some(
+      (memory) => memory.metadata.type === 'session' && memory.metadata.tags.includes(sessionTag)
+    )
+    if (alreadySummarized) continue
+
+    await createRecoveredSessionSummary(basePath, sessionId, sessionEvents)
+  }
+}
+
+async function createRecoveredSessionSummary(
+  basePath: string,
+  sessionId: string,
+  events: HookEvent[]
+): Promise<void> {
+  assertSafeFileId(sessionId, 'sessionId')
+
+  const sessionsDir = join(basePath, SESSIONS_DIR)
+  if (!existsSync(sessionsDir)) {
+    await mkdir(sessionsDir, { recursive: true })
+  }
+
+  const summary = {
+    session_id: sessionId,
+    recovered: true,
+    started_at: events[0]?.timestamp,
+    ended_at: events[events.length - 1]?.timestamp,
+    agent: events[0]?.agent,
+    event_count: events.length,
+    prompts: events.filter((e) => e.type === 'user-prompt').length,
+    tool_calls: events.filter((e) => e.type === 'post-tool-use').length,
+    summary: generateRuleBasedSummary(events),
+  }
+
+  const summaryFile = join(sessionsDir, `${sessionId}.json`)
+  await writeFile(summaryFile, JSON.stringify(summary, null, 2), 'utf-8')
+
+  const config = await loadAutoCaptureConfig(basePath)
+  if (config.mode === 'manual') return
+
+  await createMemory(basePath, {
+    type: 'session',
+    scope: 'project',
+    status: config.mode === 'auto' ? 'active' : 'proposed',
+    source: summary.agent ? `hook-recovery:${summary.agent}` : 'hook-recovery',
+    tags: [
+      'hook-session',
+      'recovered-session',
+      optionalSlug(summary.agent),
+      `session-${slug(sessionId)}`,
+    ].filter((tag): tag is string => Boolean(tag)),
+    salience: 0.54,
+    content: [
+      `Recovered interrupted session ${sessionId} from lifecycle events.`,
+      '',
+      `Agent: ${summary.agent ?? 'unknown'}`,
+      `Events: ${summary.event_count}`,
+      `Prompts: ${summary.prompts}`,
+      `Tool calls: ${summary.tool_calls}`,
+      `Started: ${summary.started_at ?? 'unknown'}`,
+      `Last event: ${summary.ended_at ?? 'unknown'}`,
+      '',
+      'This recovered session memory was generated on the next session start because no session-end checkpoint was recorded. Textual prompt hooks are stored separately as redacted exchange memories with simplified and raw sections.',
     ].join('\n'),
   })
 }
@@ -347,6 +562,10 @@ function assertSafeFileId(id: string, name: string): void {
   if (!/^[A-Za-z0-9_.-]+$/.test(id)) {
     throw new Error(`Invalid ${name}: ${id}`)
   }
+}
+
+function isSafeFileId(id: string): boolean {
+  return /^[A-Za-z0-9_.-]+$/.test(id)
 }
 
 /**

@@ -4,7 +4,7 @@ import {
   configureProjectIntegrations,
   initAutoCaptureConfig,
   initProjectMemory,
-} from 'pamh-core'
+} from '@supersekai64/pam-core'
 
 interface InitProjectOptions {
   codexGlobal?: boolean

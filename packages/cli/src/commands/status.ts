@@ -6,12 +6,12 @@ import {
   findMemoryBase,
   listMemories,
   loadAutoCaptureConfig,
-} from 'pamh-core'
+} from '@supersekai64/pam-core'
 
 export function registerStatusCommand(program: Command) {
   program
     .command('status')
-    .description('Show current memory status')
+    .description('Show current pam status')
     .option('--verbose', 'Show integration, capture, and index details')
     .action(async (options) => {
       const cwd = process.cwd()
@@ -20,7 +20,7 @@ export function registerStatusCommand(program: Command) {
       console.log(`Using memory: ${memoryPath ?? 'none'}`)
 
       if (!memoryPath) {
-        console.log('Run `memory init` to create project memory.')
+        console.log('Run `pam init` to create project memory.')
         return
       }
 
@@ -34,7 +34,9 @@ export function registerStatusCommand(program: Command) {
       )
 
       if (proposed > 0) {
-        console.log(`Review queue: ${proposed} proposed memories waiting (run \`memory review\`)`)
+        console.log(
+          `Review-mode queue: ${proposed} proposed memories waiting (run \`pam review\` if you intentionally use assisted mode)`
+        )
       }
 
       if (options.verbose) {
@@ -48,7 +50,7 @@ export function registerStatusCommand(program: Command) {
         )
         console.log(`  Claude hooks: ${existsSync(join(cwd, '.claude', 'settings.json'))}`)
         console.log(`  MCP config: ${existsSync(join(cwd, '.mcp.json'))}`)
-        console.log('  UI: run `memory ui` (default http://127.0.0.1:3939)')
+        console.log('  UI: run `pam ui` (default http://127.0.0.1:3939)')
       }
     })
 }

@@ -1,5 +1,10 @@
 import { Command } from 'commander'
-import { SemanticIndex, listMemories, readMemory, getProjectMemoryPath } from 'pamh-core'
+import {
+  SemanticIndex,
+  listMemories,
+  readMemory,
+  getProjectMemoryPath,
+} from '@supersekai64/pam-core'
 
 export function registerSemanticCommand(program: Command) {
   program

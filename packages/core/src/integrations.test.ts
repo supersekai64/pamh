@@ -9,7 +9,7 @@ describe('integrations', () => {
   let tempDir: string
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'pamh-integrations-test-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'pam-integrations-test-'))
   })
 
   afterEach(async () => {
@@ -24,11 +24,12 @@ describe('integrations', () => {
     expect(existsSync(join(tempDir, 'CLAUDE.md'))).toBe(true)
     expect(existsSync(join(tempDir, '.ai-memory', 'auto-capture.yaml'))).toBe(true)
     expect(existsSync(join(tempDir, '.claude', 'settings.json'))).toBe(true)
+    expect(existsSync(join(tempDir, '.codex', 'hooks.json'))).toBe(true)
     expect(existsSync(join(tempDir, 'opencode.json'))).toBe(true)
     expect(existsSync(join(tempDir, '.mcp.json'))).toBe(true)
     expect(existsSync(join(tempDir, '.vscode', 'mcp.json'))).toBe(true)
     expect(existsSync(join(tempDir, '.cursor', 'mcp.json'))).toBe(true)
-    expect(existsSync(join(tempDir, '.cursor', 'rules', 'pamh.mdc'))).toBe(true)
+    expect(existsSync(join(tempDir, '.cursor', 'rules', 'pam.mdc'))).toBe(true)
     expect(existsSync(join(tempDir, '.github', 'copilot-instructions.md'))).toBe(true)
   })
 
@@ -38,8 +39,8 @@ describe('integrations', () => {
     const raw = await readFile(join(tempDir, '.vscode', 'mcp.json'), 'utf-8')
     const config = JSON.parse(raw)
 
-    expect(config.servers.pamh).toEqual({
-      command: 'memory',
+    expect(config.servers.pam).toEqual({
+      command: 'pam',
       args: ['server', 'start'],
     })
   })
@@ -50,9 +51,82 @@ describe('integrations', () => {
     const raw = await readFile(join(tempDir, '.claude', 'settings.json'), 'utf-8')
     const config = JSON.parse(raw)
 
-    expect(config.hooks.SessionStart[0].hooks[0].command).toContain('memory hook record')
+    expect(config.hooks.SessionStart[0].hooks[0].command).toContain('pam hook record')
+    expect(config.hooks.SessionStart[0].hooks[0].command).toContain('--agent claude-code')
     expect(config.hooks.Stop[0].hooks[0].command).toContain('session-end')
     expect(raw).not.toContain('--project')
+  })
+
+  it('should configure Codex hooks with the Codex agent label', async () => {
+    await configureProjectIntegrations(tempDir)
+
+    const raw = await readFile(join(tempDir, '.codex', 'hooks.json'), 'utf-8')
+    const config = JSON.parse(raw)
+
+    expect(config.hooks.SessionStart[0].hooks[0].command).toBe(
+      'pam hook record session-start --agent codex'
+    )
+    expect(config.hooks.UserPromptSubmit[0].hooks[0].command).toBe(
+      'pam hook record user-prompt --agent codex'
+    )
+    expect(config.hooks.Stop[0].hooks[0].command).toBe('pam hook record session-end --agent codex')
+    expect(raw).not.toContain('--agent claude-code')
+  })
+
+  it('should migrate stale Codex hooks that were labeled as Claude Code', async () => {
+    await mkdir(join(tempDir, '.codex'), { recursive: true })
+    await writeFile(
+      join(tempDir, '.codex', 'hooks.json'),
+      JSON.stringify(
+        {
+          hooks: {
+            SessionStart: [
+              {
+                hooks: [
+                  {
+                    type: 'command',
+                    command: 'pam hook record session-start --agent claude-code',
+                  },
+                ],
+              },
+            ],
+            UserPromptSubmit: [
+              {
+                hooks: [
+                  {
+                    type: 'command',
+                    command: 'pam hook record user-prompt --agent claude-code',
+                  },
+                ],
+              },
+            ],
+            Stop: [
+              {
+                hooks: [
+                  {
+                    type: 'command',
+                    command: 'pam hook record session-end --agent claude-code',
+                  },
+                ],
+              },
+            ],
+          },
+        },
+        null,
+        2
+      ),
+      'utf-8'
+    )
+
+    const result = await configureProjectIntegrations(tempDir)
+    const codexResult = result.results.find((entry) =>
+      entry.path.replaceAll('\\', '/').endsWith('.codex/hooks.json')
+    )
+    const raw = await readFile(join(tempDir, '.codex', 'hooks.json'), 'utf-8')
+
+    expect(codexResult?.status).toBe('updated')
+    expect(raw).toContain('--agent codex')
+    expect(raw).not.toContain('--agent claude-code')
   })
 
   it('should configure opencode MCP and instructions', async () => {
@@ -62,9 +136,9 @@ describe('integrations', () => {
     const config = JSON.parse(raw)
 
     expect(config.instructions).toContain('AGENTS.md')
-    expect(config.mcp.pamh).toEqual({
+    expect(config.mcp.pam).toEqual({
       type: 'local',
-      command: ['memory', 'server', 'start'],
+      command: ['pam', 'server', 'start'],
       enabled: true,
     })
   })
@@ -83,7 +157,7 @@ describe('integrations', () => {
 
     expect(config.username).toBe('tester')
     expect(config.instructions).toEqual(['EXISTING.md', 'AGENTS.md'])
-    expect(config.mcp.pamh.command).toEqual(['memory', 'server', 'start'])
+    expect(config.mcp.pam.command).toEqual(['pam', 'server', 'start'])
   })
 
   it('should update marked instruction block idempotently', async () => {
@@ -94,7 +168,7 @@ describe('integrations', () => {
     const second = await readFile(join(tempDir, 'AGENTS.md'), 'utf-8')
 
     expect(second).toBe(first)
-    expect(second.match(/PAMH:START/g)).toHaveLength(1)
+    expect(second.match(/PAM:START/g)).toHaveLength(1)
   })
 
   it('should instruct agents to checkpoint durable user corrections', async () => {
@@ -105,7 +179,11 @@ describe('integrations', () => {
     expect(agents).toContain('Before your final response')
     expect(agents).toContain('User corrects you')
     expect(agents).toContain('memory_checkpoint')
+    expect(agents).toContain('Strong concepts')
+    expect(agents).toContain('concepts')
     expect(agents).toContain('update relevant documentation')
+    expect(agents).toContain('auto capture mode')
+    expect(agents).not.toContain('assisted capture mode** by default')
   })
 
   it('should generate project-only instructions with executable CLI fallbacks', async () => {
@@ -115,13 +193,13 @@ describe('integrations', () => {
       join(tempDir, 'AGENTS.md'),
       join(tempDir, 'CLAUDE.md'),
       join(tempDir, '.github', 'copilot-instructions.md'),
-      join(tempDir, '.cursor', 'rules', 'pamh.mdc'),
+      join(tempDir, '.cursor', 'rules', 'pam.mdc'),
     ]
 
     for (const file of files) {
       const raw = await readFile(file, 'utf-8')
-      expect(raw).toContain('memory search')
-      expect(raw).toContain('PAMH is project-only')
+      expect(raw).toContain('pam search')
+      expect(raw).toContain('PAM is project-only')
       expect(raw).not.toContain('--project')
       expect(raw).not.toContain('Use `global`')
     }
@@ -143,8 +221,8 @@ describe('integrations', () => {
     const raw = await readFile(join(codexHome, 'config.toml'), 'utf-8')
 
     expect(result.status).toBe('created')
-    expect(raw).toContain('[mcp_servers.pamh]')
-    expect(raw).toContain('command = "memory"')
+    expect(raw).toContain('[mcp_servers.pam]')
+    expect(raw).toContain('command = "pam"')
     expect(raw).toContain('args = ["server", "start"]')
   })
 
@@ -156,7 +234,7 @@ describe('integrations', () => {
       configPath,
       `model = "gpt-5.4"
 
-[mcp_servers.pamh]
+[mcp_servers.PAM]
 command = "old-memory"
 args = ["old"]
 
@@ -172,10 +250,11 @@ command = "node_repl"
 
     expect(first.status).toBe('updated')
     expect(second.status).toBe('unchanged')
-    expect(raw.match(/\[mcp_servers\.pamh\]/g)).toHaveLength(1)
+    expect(raw.match(/\[mcp_servers\.pam\]/g)).toHaveLength(1)
     expect(raw).toContain('model = "gpt-5.4"')
     expect(raw).toContain('[mcp_servers.node_repl]')
-    expect(raw).toContain('command = "memory"')
+    expect(raw).toContain('command = "pam"')
+    expect(raw).not.toContain('[mcp_servers.PAM]')
     expect(raw).not.toContain('old-memory')
   })
 })

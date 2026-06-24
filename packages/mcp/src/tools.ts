@@ -26,7 +26,7 @@ import {
   type Memory,
   type DecayConfig,
   type HookEventType,
-} from 'pamh-core'
+} from '@supersekai64/pam-core'
 
 export interface McpToolContext {
   cwd: string
@@ -37,6 +37,7 @@ export interface SearchMemoryInput {
   query?: string
   type?: string
   tag?: string
+  theme?: string
   limit?: number
 }
 
@@ -49,6 +50,8 @@ export interface AddMemoryInput {
   title?: string
   type: string
   tags?: string[]
+  concepts?: string[]
+  theme?: string
   status?: MemoryStatus
   salience?: number // Importance score (0-1, default: 0.5)
 }
@@ -60,6 +63,7 @@ export interface MemoryCheckpointInput {
   preferences?: string[]
   mistakes?: string[]
   tasks?: string[]
+  concepts?: string[]
   agent?: string
   model?: string
   session_id?: string
@@ -72,6 +76,8 @@ export interface EditMemoryInput {
   title?: string
   type?: string
   tags?: string[]
+  concepts?: string[]
+  theme?: string
 }
 
 export interface DeleteMemoryInput {
@@ -106,6 +112,7 @@ export async function searchMemory(input: SearchMemoryInput, context: McpToolCon
     query: input.query,
     type: input.type,
     tag: input.tag,
+    theme: input.theme,
     limit: input.limit ?? 10,
     natural: true,
   })
@@ -137,6 +144,8 @@ export async function addMemory(input: AddMemoryInput, context: McpToolContext) 
       type: assertMemoryType(input.type),
       scope: 'project',
       tags: input.tags ?? [],
+      concepts: input.concepts,
+      theme: input.theme,
       source: 'mcp',
       status,
       salience: input.salience ?? 0.5,
@@ -197,6 +206,7 @@ export async function memoryCheckpoint(input: MemoryCheckpointInput, context: Mc
         scope: 'project',
         content: item.content,
         tags: buildCheckpointTags(item.tag, input),
+        concepts: input.concepts,
         source,
         status,
         salience: item.salience,
@@ -227,6 +237,8 @@ export async function editMemory(input: EditMemoryInput, context: McpToolContext
     title: input.title,
     type: input.type ? assertMemoryType(input.type) : undefined,
     tags: input.tags,
+    concepts: input.concepts,
+    theme: input.theme,
   })
 }
 

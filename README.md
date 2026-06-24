@@ -1,60 +1,67 @@
-# Portable AI Memory Hub (PAMH)
+# Portable AI Memory (PAM)
 
 Open-source platform for persistent, portable, and model-independent AI memory.
 
-PAMH lets you maintain user-controlled memory that works across multiple LLMs, IDEs, agents, and tools.
+PAM lets you maintain user-controlled memory that works across multiple LLMs, IDEs, agents, and tools.
 
-## Why PAMH?
+## Why PAM?
 
 AI memory is often trapped inside one chat, IDE, vendor, or session.
 
-PAMH gives your tools a shared, local memory store that you control. Memories
+PAM gives your tools a shared, local memory store that you control. Memories
 live as project files, can be inspected and edited, and are exposed through the
 same CLI, MCP, API, and UI surfaces.
 
 Any compatible agent can read the same context, propose updates, and reuse
 project knowledge across sessions.
-PAMH provides the shared memory layer; your agent still needs the PAMH MCP tools
+PAM provides the shared memory layer; your agent still needs the PAM MCP tools
 or generated hooks to capture memories.
 
 Key advantages:
 
 - Works across tools, agents, IDEs, and LLM providers.
 - Keeps memory local, reviewable, editable, and user-controlled.
-- Installs with one npm command and exposes a single `memory` CLI.
+- Installs with one npm command and exposes a single `pam` CLI.
 - Provides CLI, MCP, API, and UI access to the same memory store.
 - Tracks useful context over time instead of losing it in chat history.
 
-PAMH is not another chat interface. It is a memory layer for AI-assisted work.
+PAM is not another chat interface. It is a memory layer for AI-assisted work.
+
+## PAMagotchi Lite
+
+This workspace now includes [PAMagotchi Lite](pamagotchi-lite/README.md), a
+raw-first rebuild experiment focused on the simplest useful memory loop:
+append-only exchange capture, AI-assisted themed checkpoints, and compact
+context compilation.
 
 ## Installation
 
 **From npm** (recommended for users):
 
 ```bash
-npm install -g pamh-cli
+npm install -g @supersekai64/pam-cli
 ```
 
-This installs the `memory` command globally.
+This installs the `pam` command globally.
 
-If npm stays quiet during the first install, use `npm install -g pamh-cli --loglevel=info` to show dependency progress.
+If npm stays quiet during the first install, use `npm install -g @supersekai64/pam-cli --loglevel=info` to show dependency progress.
 
-On Windows, stop any running PAMH UI or MCP server before updating the global
-package. Native SQLite files can stay locked while `memory ui` or
-`memory server start` is running, which makes npm fail with `EBUSY`.
-After PAMH is installed, prefer `memory upgrade` for future global updates; it
-stops running PAMH UI/MCP services before invoking npm. The command prints a
+On Windows, stop any running PAM UI or MCP server before updating the global
+package. Native SQLite files can stay locked while `pam ui` or
+`pam server start` is running, which makes npm fail with `EBUSY`.
+After PAM is installed, prefer `pam upgrade` for future global updates; it
+stops running PAM UI/MCP services before invoking npm. The command prints a
 status file, log file, and a platform-specific follow command so you can watch
 upgrade progress while the updater runs in the background.
 
-To make PAMH part of a specific project that already uses npm/package.json,
+To make PAM part of a specific project that already uses npm/package.json,
 install it locally from that project root:
 
 ```bash
-npm install -D pamh-cli
+npm install -D @supersekai64/pam-cli
 ```
 
-Local installs bootstrap the project automatically: PAMH creates `.ai-memory/`
+Local installs bootstrap the project automatically: PAM creates `.ai-memory/`
 and writes the supported agent/IDE integration files. After the first install,
 reload VS Code/Cursor windows, start a new Claude Code/OpenCode session, or
 restart/open a new Codex session so the client reloads project instructions and
@@ -66,7 +73,7 @@ MCP configuration.
 pnpm setup
 ```
 
-This installs dependencies, builds all packages, and links the `memory` command globally.
+This installs dependencies, builds all packages, and links the `pam` command globally.
 
 **Manual installation** (if you need more control):
 
@@ -76,31 +83,31 @@ pnpm build
 pnpm link:cli
 ```
 
-`pnpm link:cli` exposes the `memory` command globally from `packages/cli`.
+`pnpm link:cli` exposes the `pam` command globally from `packages/cli`.
 
 ## Quick Start
 
-### 1. Initialize PAMH in your project
+### 1. Initialize PAM in your project
 
 ```bash
 cd your-project
-memory init
+pam init
 ```
 
 This creates `.ai-memory/` and configures agent integrations automatically.
 
-If you installed `pamh-cli` locally in the project with `npm install -D pamh-cli`,
+If you installed `@supersekai64/pam-cli` locally in the project with `npm install -D @supersekai64/pam-cli`,
 this step is performed automatically by npm postinstall.
 
 ### 2. Configure your IDE or AI agent
 
-Add PAMH to your MCP-compatible tool (Cursor, VSCode with Copilot, Claude Code, etc.):
+Add PAM to your MCP-compatible tool (Cursor, VSCode with Copilot, Claude Code, etc.):
 
 ```json
 {
   "mcpServers": {
-    "pamh": {
-      "command": "memory",
+    "PAM": {
+      "command": "pam",
       "args": ["server", "start"]
     }
   }
@@ -112,48 +119,45 @@ See [docs/mcp.md](docs/mcp.md) for detailed configuration examples.
 ### 3. Verify the setup
 
 ```bash
-memory doctor integrations
-memory smoke-test agent
-memory review
+pam doctor integrations
+pam smoke-test agent
 ```
 
 `doctor integrations` checks the generated client files, `smoke-test agent`
-creates a proposed test memory, and `review` shows proposals waiting for
-approval.
+creates an active test memory, and the printed search/context command verifies
+that the agent can recall it immediately.
 
 First-run success looks like this: `doctor integrations` reports OK, the smoke
-test prints a proposed memory ID, `memory review` shows that proposal, and after
-approval the printed `memory search ...` or `memory context --query ...` command
-can find it again.
+test prints an active memory ID, and the printed `pam search ...` or
+`pam context --query ...` command can find it immediately.
 
-### 4. Work with your AI agent (assisted capture)
+### 4. Work with your AI agent (automatic capture)
 
-By default, PAMH uses **assisted mode**: an integrated agent proposes memories
-through PAMH tools or hooks, and you approve or reject them.
+By default, PAM uses **auto mode**: an integrated agent can write active
+memories directly, and lifecycle hooks capture raw conversation exchanges as
+Markdown `exchange` memories.
 
 MCP capture is intelligent by default. When an agent saves a durable signal,
-PAMH looks for same-theme memories first: proposed duplicates are merged, active
-memories get a proposed supersession, and auto mode can supersede directly while
-preserving evidence links.
+PAM looks for same-type, same-theme memories first: review-mode duplicates are
+merged, active contradictions can be superseded in auto mode, and evidence
+links are preserved through `source_ids`.
 
 **Workflow:**
 
 1. Work normally with your AI agent (Cursor, Copilot, Claude Code, etc.)
-2. The agent proposes or consolidates memories when it learns something important
-3. Review proposals with `memory review`, `memory ui`, or `memory list --status proposed`
-4. Approve with `memory approve <id>` or reject with `memory reject <id>`
+2. Hooks capture raw prompt/exchange evidence as Markdown
+3. Durable signals are categorized into broad themes such as Instruction, Decision, and Issue
+4. PAM updates SQLite theme compilations and vector indexes automatically
+5. Agents search memory through MCP before answering
 
 **Example:**
 
 ```bash
-# See proposed memories
-memory list --status proposed
+# Inspect the active memories the agent can use
+pam list --status active
 
-# Approve a memory
-memory approve mem_abc123
-
-# Or open the UI to review visually
-memory ui --open
+# Or open the UI to inspect memory and context
+pam ui --open
 ```
 
 ### 5. Manual mode (optional)
@@ -161,16 +165,16 @@ memory ui --open
 You can also add memories manually:
 
 ```bash
-memory add -t decision -c "Use PostgreSQL for the main database"
-memory list
-memory search "database"
+pam add -t decision -c "Use PostgreSQL for the main database"
+pam list
+pam search "database"
 ```
 
 See [docs/capture-modes.md](docs/capture-modes.md) for all capture modes (manual, assisted, auto).
 
 ## How It Works
 
-PAMH works like `.git` - it searches for `.ai-memory/` by walking up the directory tree.
+PAM works like `.git` - it searches for `.ai-memory/` by walking up the directory tree.
 
 ### Shared Memory (Monorepo)
 
@@ -183,14 +187,14 @@ PAMH works like `.git` - it searches for `.ai-memory/` by walking up the directo
 
 ```bash
 cd ~/projects/my-app
-memory init
+pam init
 
 cd backend
-memory add -t decision -c "Use PostgreSQL for the main database"
+pam add -t decision -c "Use PostgreSQL for the main database"
 # → Stored in ~/projects/my-app/.ai-memory/
 
 cd ../frontend
-memory list
+pam list
 # → Shows the same memory
 ```
 
@@ -206,28 +210,29 @@ memory list
 
 ```bash
 cd ~/projects/my-app/backend
-memory init
+pam init
 # → Creates isolated memory for this project only
 ```
 
 ## Features
 
-- Human-readable Markdown memory storage
+- Human-readable Markdown memory storage, including raw `exchange` memories
 - SQLite + FTS5 indexing
-- Text, tag, and project-memory search
-- Semantic search with local or OpenAI embeddings
+- SQLite theme compilations for compact Instruction/Decision/Issue-style context
+- Text, tag, and project-pam search
+- Automatic semantic vectors with built-in local hash embeddings, optional local model, or OpenAI embeddings
 - Export/import in ZIP, JSON, Markdown, and SQLite formats
 - Basic secret redaction
 - Context compilation
 - Supersession chains for updated or conflicting memories
 - Agent handoffs for cross-session context transfer
-- Configurable memory decay and forget sweeps
+- Configurable pam decay and forget sweeps
 - MCP stdio server
-- Local web UI via `memory ui`
-- Three capture modes: manual, assisted (default), and auto
-- Intelligent MCP capture that merges same-theme proposed memories and preserves
-  source links when replacing active guidance
-- Assisted intelligence: recommendations, cleanup, distillation, and Knowledge Graph previews
+- Local web UI via `pam ui`
+- Three capture modes: auto (default), assisted, and manual
+- Intelligent MCP capture that merges same-theme review-mode proposals, detects
+  likely contradictions, and preserves source links when replacing active guidance
+- Optional diagnostics: recommendations, cleanup, distillation, and Knowledge Graph previews
 
 ## Documentation
 
@@ -254,16 +259,17 @@ memory init
 ## Local UI
 
 ```bash
-memory ui --open
+pam ui --open
 ```
 
 See [docs/ui.md](docs/ui.md).
 
 ## Semantic Search
 
-PAMH uses vector embeddings for semantic search:
+PAM uses vector embeddings for semantic search and automatic pam indexing:
 
-- **Optional local**: `Xenova/all-MiniLM-L6-v2` (384 dimensions, runs offline after setup)
+- **Default local**: deterministic hash embeddings (384 dimensions, no setup)
+- **Optional local model**: `Xenova/all-MiniLM-L6-v2` (384 dimensions, runs offline after setup)
 - **Optional**: OpenAI `text-embedding-3-small` (1536 dimensions, requires API key)
 
 To use local embeddings:
@@ -298,7 +304,7 @@ See [docs/release.md](docs/release.md) for npm publishing.
 ## Structure
 
 ```text
-pamh/
+PAM/
 ├── packages/
 │   ├── core/       # Storage, indexing, search
 │   ├── api/        # Local HTTP API for UI/Desktop/IDE clients

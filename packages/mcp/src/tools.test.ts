@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { initProjectMemory, listMemories, saveAutoCaptureConfig } from 'pamh-core'
+import { initProjectMemory, listMemories, saveAutoCaptureConfig } from '@supersekai64/pam-core'
 import {
   addMemory,
   compileMemoryContext,
@@ -21,7 +21,7 @@ describe('MCP tools', () => {
   let context: McpToolContext
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'pamh-mcp-test-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'pam-mcp-test-'))
     projectDir = join(tempDir, 'project')
     projectMemoryPath = await initProjectMemory(projectDir)
     context = { cwd: projectDir, projectMemoryPath }
@@ -37,6 +37,7 @@ describe('MCP tools', () => {
         content: 'Use PostgreSQL for relational data',
         type: 'decision',
         tags: ['database'],
+        concepts: ['Architecture'],
         status: 'active',
       },
       context
@@ -49,14 +50,16 @@ describe('MCP tools', () => {
     const edited = await editMemory(
       {
         id: created.metadata.id,
-        title: 'Local memory index',
-        content: 'Use SQLite for the local memory index',
+        title: 'Local pam index',
+        content: 'Use SQLite for the local pam index',
         tags: ['sqlite'],
+        concepts: ['Storage'],
       },
       context
     )
-    expect(edited?.metadata.title).toBe('Local memory index')
-    expect(edited?.content).toBe('Use SQLite for the local memory index')
+    expect(edited?.metadata.title).toBe('Local pam index')
+    expect(edited?.content).toBe('Use SQLite for the local pam index')
+    expect(edited?.metadata.concepts).toEqual(['storage'])
 
     const results = await searchMemory({ query: 'SQLite' }, context)
     expect(results).toHaveLength(1)
@@ -85,20 +88,22 @@ describe('MCP tools', () => {
   })
 
   it('should merge same-theme proposed memories during MCP capture', async () => {
+    await saveAutoCaptureConfig(projectMemoryPath, { mode: 'assisted' })
+
     const first = await addMemory(
       {
-        content: 'Governance recommendations should be action-first for users.',
+        content: 'Maintenance recommendations should be action-first for users.',
         type: 'preference',
-        tags: ['governance', 'ui'],
+        tags: ['diagnostics', 'ui'],
       },
       context
     )
 
     const second = await addMemory(
       {
-        content: 'Governance recommendations should explain safety before technical details.',
+        content: 'Maintenance recommendations should explain safety before technical details.',
         type: 'preference',
-        tags: ['governance', 'ui'],
+        tags: ['diagnostics', 'ui'],
       },
       context
     )
@@ -110,11 +115,14 @@ describe('MCP tools', () => {
   })
 
   it('should create proposed memories from a checkpoint in assisted mode', async () => {
+    await saveAutoCaptureConfig(projectMemoryPath, { mode: 'assisted' })
+
     const result = await memoryCheckpoint(
       {
-        summary: 'Implemented cross-tool memory capture planning.',
-        decisions: ['Use assisted capture as the default mode.'],
-        facts: ['PAMH exposes memory_checkpoint through MCP.'],
+        summary: 'Implemented cross-tool pam capture planning.',
+        decisions: ['Use assisted capture only when a project needs review before activation.'],
+        facts: ['PAM exposes memory_checkpoint through MCP.'],
+        concepts: ['Architecture'],
         agent: 'codex',
         model: 'gpt-5',
       },
@@ -131,6 +139,51 @@ describe('MCP tools', () => {
     ])
     expect(result.created[0].metadata.tags).toContain('checkpoint')
     expect(result.created[0].metadata.tags).toContain('agent-codex')
+    expect(
+      result.created.every((memory) => memory.metadata.concepts?.includes('architecture'))
+    ).toBe(true)
+  })
+
+  it('should create active checkpoint memories in default auto mode', async () => {
+    const result = await memoryCheckpoint(
+      {
+        summary: 'Implemented automatic pam capture.',
+        decisions: ['Default PAM capture mode is auto.'],
+        agent: 'codex',
+      },
+      context
+    )
+
+    expect(result.mode).toBe('auto')
+    expect(result.status).toBe('active')
+    expect(result.created.map((memory) => memory.metadata.status)).toEqual(['active', 'active'])
+  })
+
+  it('should supersede an active contradiction in default auto mode', async () => {
+    const first = await addMemory(
+      {
+        content: 'Capture mode should allow automatic pam capture for project decisions.',
+        type: 'decision',
+        tags: ['capture-mode'],
+      },
+      context
+    )
+
+    const second = await addMemory(
+      {
+        content: 'Capture mode should deny automatic pam capture for project decisions.',
+        type: 'decision',
+        tags: ['capture-mode'],
+      },
+      context
+    )
+
+    const archived = await getMemory({ id: first.metadata.id }, context)
+
+    expect(second.metadata.id).not.toBe(first.metadata.id)
+    expect(second.metadata.supersedes).toBe(first.metadata.id)
+    expect(archived?.metadata.status).toBe('archived')
+    expect(archived?.metadata.superseded_by).toBe(second.metadata.id)
   })
 
   it('should record checkpoint observations without creating memories in manual mode', async () => {

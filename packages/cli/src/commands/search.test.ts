@@ -3,7 +3,7 @@ import { Command } from 'commander'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createMemory, initProjectMemory } from 'pamh-core'
+import { createMemory, initProjectMemory } from '@supersekai64/pam-core'
 
 import { registerSearchCommand } from './search.js'
 
@@ -14,7 +14,7 @@ describe('search command', () => {
 
   beforeEach(async () => {
     previousCwd = process.cwd()
-    tempDir = await mkdtemp(join(tmpdir(), 'pamh-cli-search-test-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'pam-cli-search-test-'))
     memoryPath = await initProjectMemory(tempDir)
     process.chdir(tempDir)
   })

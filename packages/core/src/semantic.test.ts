@@ -29,7 +29,7 @@ describe('semantic', () => {
   let basePath: string
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'pamh-semantic-test-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'pam-semantic-test-'))
     basePath = await initProjectMemory(tempDir)
   })
 

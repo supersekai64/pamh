@@ -17,7 +17,7 @@ describe('restore', () => {
   let basePath: string
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'pamh-restore-test-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'pam-restore-test-'))
     basePath = await initProjectMemory(tempDir)
   })
 

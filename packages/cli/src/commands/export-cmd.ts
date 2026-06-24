@@ -1,5 +1,5 @@
 import { Command } from 'commander'
-import { exportMemories, getProjectMemoryPath } from 'pamh-core'
+import { exportMemories, getProjectMemoryPath } from '@supersekai64/pam-core'
 import { resolve } from 'node:path'
 
 export function registerExportCommand(program: Command) {

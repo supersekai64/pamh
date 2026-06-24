@@ -11,12 +11,12 @@ import {
   updateMemory,
 } from './index.js'
 
-describe('memory debug logging', () => {
+describe('pam debug logging', () => {
   let tempDir: string
   let basePath: string
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'pamh-debug-test-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'pam-debug-test-'))
     basePath = await initProjectMemory(tempDir)
   })
 

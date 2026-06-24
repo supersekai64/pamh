@@ -43,6 +43,7 @@ export async function restoreMemory(basePath: string, id: string): Promise<boole
 
   const index = new MemoryIndex(basePath)
   index.indexMemory(memory, filePath)
+  index.rebuildThemeCompilations()
   index.close()
 
   await recordMemoryDebugEvent(basePath, {
@@ -95,6 +96,7 @@ async function restoreMemoryBackup(basePath: string, id: string): Promise<boolea
 
   const index = new MemoryIndex(basePath)
   index.indexMemory(memory, targetPath)
+  index.rebuildThemeCompilations()
   index.close()
 
   await recordMemoryDebugEvent(basePath, {
@@ -115,5 +117,5 @@ function hasNoiseTag(tags: string[]): boolean {
 }
 
 function isNoiseTag(tag: string): boolean {
-  return ['noise', 'ignored', 'pamh-noise'].includes(tag)
+  return ['noise', 'ignored', 'pam-noise'].includes(tag)
 }

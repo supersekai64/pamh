@@ -3,6 +3,7 @@ import * as sqliteVec from 'sqlite-vec'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { EmbeddingProvider, createEmbeddingProvider } from './embedding.js'
+import type { Memory } from './types.js'
 
 interface SemanticMetadataRow {
   dimensions: number
@@ -141,4 +142,41 @@ export interface SemanticSearchResult {
 
 function hashContent(content: string): string {
   return createHash('sha256').update(content).digest('hex')
+}
+
+export async function autoIndexSemanticMemory(basePath: string, memory: Memory): Promise<void> {
+  const index = new SemanticIndex(basePath)
+  try {
+    if (memory.metadata.status === 'deleted') {
+      index.removeMemory(memory.metadata.id)
+      return
+    }
+
+    await index.indexMemory(memory.metadata.id, semanticMemoryText(memory))
+  } finally {
+    index.close()
+  }
+}
+
+export function removeSemanticMemory(basePath: string, memoryId: string): void {
+  const index = new SemanticIndex(basePath)
+  try {
+    index.removeMemory(memoryId)
+  } finally {
+    index.close()
+  }
+}
+
+function semanticMemoryText(memory: Memory): string {
+  return [
+    memory.metadata.title,
+    memory.metadata.type,
+    memory.metadata.theme,
+    memory.metadata.source,
+    ...memory.metadata.tags,
+    ...(memory.metadata.concepts ?? []),
+    memory.content,
+  ]
+    .filter(Boolean)
+    .join('\n')
 }

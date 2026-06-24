@@ -4,10 +4,10 @@ Use GitHub Actions Trusted Publishing for npm releases. This avoids local 2FA pr
 
 ## One-time npm setup
 
-For each published package (`pamh-core`, `pamh-ui`, `pamh-api`, `pamh-protocol`, `pamh-cli`), open the package settings on npm and add this trusted publisher:
+For each published package (`@supersekai64/pam-core`, `@supersekai64/pam-ui`, `@supersekai64/pam-api`, `@supersekai64/pam-protocol`, `@supersekai64/pam-cli`), open the package settings on npm and add this trusted publisher:
 
 - Publisher: GitHub Actions
-- Repository: `supersekai64/pamh`
+- Repository: `supersekai64/pam`
 - Workflow: `npm-publish.yml`
 - Environment: leave empty
 

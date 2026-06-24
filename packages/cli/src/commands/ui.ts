@@ -10,14 +10,14 @@ interface UiCommandOptions {
   open?: boolean
 }
 
-interface PamhServerProbe {
+interface PamServerProbe {
   token: string
 }
 
 export function registerUiCommand(program: Command) {
   program
     .command('ui')
-    .description('Start the local PAMH web UI')
+    .description('Start the local PAM web UI')
     .option('--host <host>', 'Host to bind', '127.0.0.1')
     .option('-p, --port <port>', 'Port to bind', '3939')
     .option('--open', 'Open the UI in the default browser')
@@ -34,7 +34,7 @@ export function registerUiCommand(program: Command) {
       try {
         const app = await startUiServer(host, port)
 
-        console.log(`PAMH UI running at ${app.url}`)
+        console.log(`PAM UI running at ${app.url}`)
         console.log('Press Ctrl+C to stop.')
 
         if (options.open) {
@@ -42,20 +42,20 @@ export function registerUiCommand(program: Command) {
         }
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === 'EADDRINUSE') {
-          const running = await probePamhServer(url, process.cwd())
+          const running = await probePamServer(url, process.cwd())
           if (running) {
-            console.log(`Stopping existing PAMH UI instance on port ${port}...`)
+            console.log(`Stopping existing PAM UI instance on port ${port}...`)
             await shutdownServer(url, running.token)
             const freed = await waitForPortFree(host, port, 3000)
             if (!freed) {
               console.error(
-                `Existing PAMH UI on port ${port} did not stop. Stop it manually or choose --port.`
+                `Existing PAM UI on port ${port} did not stop. Stop it manually or choose --port.`
               )
               process.exit(1)
             }
 
             const app = await startUiServer(host, port)
-            console.log(`PAMH UI running at ${app.url}`)
+            console.log(`PAM UI running at ${app.url}`)
             console.log('Press Ctrl+C to stop.')
             if (options.open) openBrowser(app.url)
             return
@@ -65,12 +65,12 @@ export function registerUiCommand(program: Command) {
           )
           process.exit(1)
         }
-        if (isPamhPackageMismatch(error)) {
+        if (isPamPackageMismatch(error)) {
           console.error(
-            'PAMH UI cannot start because the installed pamh-cli, pamh-api, and pamh-core packages are incompatible.'
+            'PAM UI cannot start because the installed @supersekai64/pam-cli, @supersekai64/pam-api, and @supersekai64/pam-core packages are incompatible.'
           )
           console.error(
-            'Update all published PAMH packages together, or use a workspace-linked CLI build.'
+            'Update all published PAM packages together, or use a workspace-linked CLI build.'
           )
           console.error(error instanceof Error ? error.message : String(error))
           process.exit(1)
@@ -81,7 +81,7 @@ export function registerUiCommand(program: Command) {
 }
 
 async function startUiServer(host: string, port: number) {
-  const { startLocalApiServer } = await import('pamh-api')
+  const { startLocalApiServer } = await import('@supersekai64/pam-api')
   return startLocalApiServer({
     cwd: process.cwd(),
     host,
@@ -89,17 +89,19 @@ async function startUiServer(host: string, port: number) {
   })
 }
 
-function isPamhPackageMismatch(error: unknown): boolean {
+function isPamPackageMismatch(error: unknown): boolean {
   return (
     error instanceof SyntaxError &&
-    /requested module 'pamh-core' does not provide an export named/i.test(error.message)
+    error.message.toLowerCase().includes('requested module') &&
+    error.message.includes('@supersekai64/pam-core') &&
+    error.message.toLowerCase().includes('does not provide an export named')
   )
 }
 
-async function probePamhServer(
+async function probePamServer(
   url: string,
   expectedProjectPath: string
-): Promise<PamhServerProbe | null> {
+): Promise<PamServerProbe | null> {
   const health = await getJson<{
     ok?: boolean
     name?: string
@@ -109,7 +111,7 @@ async function probePamhServer(
   if (
     !health ||
     health.ok !== true ||
-    health.name !== 'pamh' ||
+    health.name !== 'PAM' ||
     !health.projectPath ||
     resolve(health.projectPath) !== resolve(expectedProjectPath)
   ) {
@@ -156,7 +158,7 @@ function shutdownServer(url: string, token: string): Promise<void> {
         port: parsed.port,
         path: parsed.pathname,
         method: 'POST',
-        headers: { 'x-pamh-session': token },
+        headers: { 'x-pam-session': token },
       },
       (res) => {
         res.resume()

@@ -21,7 +21,7 @@ describe('storage', () => {
   let tempDir: string
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'pamh-test-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'pam-test-'))
   })
 
   afterEach(async () => {
@@ -34,6 +34,8 @@ describe('storage', () => {
 
       expect(existsSync(basePath)).toBe(true)
       expect(existsSync(join(basePath, 'sessions'))).toBe(true)
+      expect(existsSync(join(basePath, 'exchanges'))).toBe(true)
+      expect(existsSync(join(basePath, 'auto-capture.yaml'))).toBe(true)
       expect(existsSync(join(basePath, 'project.md'))).toBe(true)
       expect(existsSync(join(basePath, 'architecture.md'))).toBe(true)
       expect(existsSync(join(basePath, 'decisions.md'))).toBe(true)
@@ -49,14 +51,66 @@ describe('storage', () => {
         scope: 'project',
         content: 'Use TypeScript for everything',
         tags: ['tech', 'typescript'],
+        concepts: ['Architecture'],
       })
 
       expect(memory.metadata.id).toMatch(/^mem_/)
       expect(memory.metadata.type).toBe('decision')
       expect(memory.metadata.scope).toBe('project')
       expect(memory.metadata.status).toBe('active')
+      expect(memory.metadata.theme).toBe('decision')
+      expect(memory.metadata.title).toBe('Use TypeScript for everything')
       expect(memory.metadata.tags).toEqual(['tech', 'typescript'])
+      expect(memory.metadata.concepts).toEqual(['architecture'])
       expect(memory.content).toBe('Use TypeScript for everything')
+    })
+
+    it('should keep memory titles compact and consistent', async () => {
+      const basePath = await initProjectMemory(tempDir)
+
+      const generated = await createMemory(basePath, {
+        type: 'session',
+        scope: 'project',
+        content:
+          'Added SQLite index diagnostic cards to the PAM UI SQLite index page with storage and vector coverage metrics.',
+      })
+      const explicit = await createMemory(basePath, {
+        type: 'knowledge',
+        scope: 'project',
+        title: 'Explicit display title',
+        content: 'This content should not replace the title.',
+      })
+
+      expect(generated.metadata.title).toBe(
+        'Added SQLite index diagnostic cards to the PAM UI SQLite index page with'
+      )
+      expect(explicit.metadata.title).toBe('Explicit display title')
+    })
+
+    it('should persist compiled theme summaries in SQLite', async () => {
+      const basePath = await initProjectMemory(tempDir)
+
+      await createMemory(basePath, {
+        type: 'rule',
+        scope: 'project',
+        content: 'Always update documentation after behavior changes.',
+      })
+      await createMemory(basePath, {
+        type: 'decision',
+        scope: 'project',
+        content: 'Use SQLite for compiled theme storage.',
+      })
+
+      const index = new MemoryIndex(basePath)
+      const compilations = index.getThemeCompilations()
+      index.close()
+
+      expect(compilations.map((item) => item.theme)).toEqual(
+        expect.arrayContaining(['instruction', 'decision'])
+      )
+      expect(compilations.find((item) => item.theme === 'instruction')?.content).toContain(
+        'compiled PAM memory theme'
+      )
     })
 
     it('should read a memory', async () => {
@@ -93,11 +147,13 @@ describe('storage', () => {
       const updated = await updateMemory(basePath, created.metadata.id, {
         content: 'Updated content',
         tags: ['updated'],
+        concepts: ['UI'],
       })
 
       expect(updated).not.toBeNull()
       expect(updated!.content).toBe('Updated content')
       expect(updated!.metadata.tags).toEqual(['updated'])
+      expect(updated!.metadata.concepts).toEqual(['ui'])
       expect(updated!.metadata.updated_at).not.toBe(created.metadata.updated_at)
     })
 

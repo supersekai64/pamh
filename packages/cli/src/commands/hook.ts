@@ -1,5 +1,5 @@
 import { Command } from 'commander'
-import { getProjectMemoryPath, recordHookEvent } from 'pamh-core'
+import { getProjectMemoryPath, recordHookEvent } from '@supersekai64/pam-core'
 
 const HOOK_EVENT_TYPES = [
   'session-start',

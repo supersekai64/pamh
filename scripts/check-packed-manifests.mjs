@@ -22,7 +22,7 @@ let failed = false
 
 for (const packageDir of packageDirs) {
   const absolutePackageDir = join(root, packageDir)
-  const tempDir = await mkdtemp(join(tmpdir(), 'pamh-pack-check-'))
+  const tempDir = await mkdtemp(join(tmpdir(), 'PAM-pack-check-'))
 
   try {
     const output = runPnpmPack(absolutePackageDir, tempDir)

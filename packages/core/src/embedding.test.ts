@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from 'vitest'
-import { createEmbeddingProvider, LocalEmbeddingProvider } from './embedding.js'
+import {
+  createEmbeddingProvider,
+  HashEmbeddingProvider,
+  LocalEmbeddingProvider,
+} from './embedding.js'
 
 vi.mock('@xenova/transformers', () => ({
   env: {
@@ -13,9 +17,9 @@ vi.mock('@xenova/transformers', () => ({
 
 describe('embedding', () => {
   describe('createEmbeddingProvider', () => {
-    it('should create local provider by default', () => {
+    it('should create hash provider by default', () => {
       const provider = createEmbeddingProvider()
-      expect(provider).toBeInstanceOf(LocalEmbeddingProvider)
+      expect(provider).toBeInstanceOf(HashEmbeddingProvider)
     })
 
     it('should create local provider when type is local', () => {

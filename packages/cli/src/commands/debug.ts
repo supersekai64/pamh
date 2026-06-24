@@ -1,5 +1,9 @@
 import { Command } from 'commander'
-import { getMemoryDebugStatus, getProjectMemoryPath, setMemoryDebugMode } from 'pamh-core'
+import {
+  getMemoryDebugStatus,
+  getProjectMemoryPath,
+  setMemoryDebugMode,
+} from '@supersekai64/pam-core'
 
 interface DebugOptions {
   agent?: string
@@ -8,11 +12,11 @@ interface DebugOptions {
 }
 
 export function registerDebugCommand(program: Command) {
-  const debug = program.command('debug').description('Configure project memory debug logging')
+  const debug = program.command('debug').description('Configure project pam debug logging')
 
   debug
     .command('on')
-    .description('Enable memory debug logging')
+    .description('Enable pam debug logging')
     .option('--agent <agent>', 'Agent name to record, e.g. codex, claude-code')
     .option('--model <model>', 'Model name to record, e.g. gpt-5, claude-sonnet')
     .option('--session <session>', 'Session id to record')
@@ -30,7 +34,7 @@ export function registerDebugCommand(program: Command) {
 
   debug
     .command('off')
-    .description('Disable memory debug logging')
+    .description('Disable pam debug logging')
     .action(async (options: DebugOptions) => {
       const basePath = resolveBasePath(options)
       const status = await setMemoryDebugMode(basePath, false)
@@ -41,7 +45,7 @@ export function registerDebugCommand(program: Command) {
 
   debug
     .command('status')
-    .description('Show memory debug logging status')
+    .description('Show pam debug logging status')
     .action(async (options: DebugOptions) => {
       const basePath = resolveBasePath(options)
       const status = await getMemoryDebugStatus(basePath)
@@ -56,7 +60,7 @@ export function registerDebugCommand(program: Command) {
 
   debug
     .command('path')
-    .description('Print the memory debug log path')
+    .description('Print the pam debug log path')
     .action(async (options: DebugOptions) => {
       const basePath = resolveBasePath(options)
       const status = await getMemoryDebugStatus(basePath)

@@ -24,5 +24,11 @@ test-results/
 AGENTS.md
 CLAUDE.md
 opencode.json
-PAMH_INTELLIGENCE_PLAN.md
+PAM_INTELLIGENCE_PLAN.md
 scripts/publish-npm.mjs
+tests/
+.tmp
+scripts/
+playwright.config.ts
+.agents/
+.pamagotchi-lite/

@@ -17,16 +17,13 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('/node_modules/three/')) return 'three'
           if (id.includes('/node_modules/react') || id.includes('/node_modules/react-dom')) {
             return 'react'
           }
-          if (
-            id.includes('/node_modules/radix-ui/') ||
-            id.includes('/node_modules/lucide-react/')
-          ) {
+          if (id.includes('/node_modules/radix-ui/') || id.includes('/node_modules/vaul/')) {
             return 'ui-vendor'
           }
+          if (id.includes('/node_modules/recharts/')) return 'charts'
         },
       },
     },

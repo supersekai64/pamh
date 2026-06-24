@@ -15,7 +15,7 @@ describe('hooks', () => {
   let basePath: string
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'pamh-hooks-test-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'pam-hooks-test-'))
     basePath = await initProjectMemory(tempDir)
   })
 
@@ -73,8 +73,16 @@ describe('hooks', () => {
     expect(summary.event_count).toBe(3)
 
     const memories = await listMemories(basePath)
+    const rawExchange = memories.find((memory) => memory.metadata.type === 'exchange')
+    expect(rawExchange?.metadata.status).toBe('active')
+    expect(rawExchange?.metadata.theme).toBe('conversation')
+    expect(rawExchange?.content).toContain('## Simplified')
+    expect(rawExchange?.content).toContain('- Summary: Hello')
+    expect(rawExchange?.content).toContain('## Raw Exchange')
+    expect(rawExchange?.content).toContain('Hello')
+
     const sessionMemory = memories.find((memory) => memory.metadata.source === 'hook')
-    expect(sessionMemory?.metadata.status).toBe('proposed')
+    expect(sessionMemory?.metadata.status).toBe('active')
     expect(sessionMemory?.content).not.toContain('Hello')
   })
 
@@ -101,7 +109,7 @@ describe('hooks', () => {
     expect(JSON.stringify(events[0].data)).toContain('[REDACTED_PASSWORD]')
   })
 
-  it('should infer proposed rule memories from explicit user correction prompts', async () => {
+  it('should infer active rule memories from explicit user correction prompts in auto mode', async () => {
     await recordHookEvent(basePath, {
       type: 'user-prompt',
       agent: 'codex',
@@ -119,7 +127,7 @@ describe('hooks', () => {
     )
 
     expect(inferredRules).toHaveLength(2)
-    expect(inferredRules.every((memory) => memory.metadata.status === 'proposed')).toBe(true)
+    expect(inferredRules.every((memory) => memory.metadata.status === 'active')).toBe(true)
     expect(
       inferredRules.some((memory) =>
         memory.content.includes('always update the relevant documentation')
@@ -130,6 +138,74 @@ describe('hooks', () => {
         memory.content.includes('should have been remembered automatically')
       )
     ).toBe(true)
+  })
+
+  it('should attach relevant memory ids when capturing a raw exchange', async () => {
+    const decision = await recordHookEvent(basePath, {
+      type: 'user-prompt',
+      agent: 'codex',
+      session_id: 'session-context',
+      project_path: tempDir,
+      data: { text: 'Always use SQLite for local memory storage.' },
+    })
+    expect(decision.id).toBeDefined()
+
+    await recordHookEvent(basePath, {
+      type: 'user-prompt',
+      agent: 'codex',
+      session_id: 'session-context',
+      project_path: tempDir,
+      data: { text: 'What should we use for local memory storage?' },
+    })
+
+    const exchanges = (await listMemories(basePath)).filter(
+      (memory) => memory.metadata.type === 'exchange'
+    )
+    const questionExchange = exchanges.find((memory) =>
+      memory.content.includes('What should we use for local memory storage?')
+    )
+    expect(exchanges).toHaveLength(2)
+    expect(questionExchange?.metadata.source_ids?.length).toBeGreaterThan(0)
+    expect(questionExchange?.content).toContain('Relevant memory IDs before answer')
+    expect(questionExchange?.content).toContain('- Signal: question')
+  })
+
+  it('should recover an interrupted session summary on the next session start', async () => {
+    await recordHookEvent(basePath, {
+      type: 'user-prompt',
+      agent: 'codex',
+      session_id: 'interrupted-session',
+      project_path: tempDir,
+      data: { text: 'Remember that PAM should recover missing checkpoints.' },
+    })
+
+    await recordHookEvent(basePath, {
+      type: 'session-start',
+      agent: 'codex',
+      session_id: 'next-session',
+      project_path: tempDir,
+      data: {},
+    })
+
+    const memories = await listMemories(basePath)
+    const recovered = memories.find(
+      (memory) =>
+        memory.metadata.type === 'session' &&
+        memory.metadata.source === 'hook-recovery:codex' &&
+        memory.metadata.tags.includes('session-interrupted-session')
+    )
+
+    expect(recovered?.metadata.status).toBe('active')
+    expect(recovered?.content).toContain('Recovered interrupted session interrupted-session')
+    expect(recovered?.content).toContain('no session-end checkpoint was recorded')
+
+    const summaryRaw = await readFile(
+      join(basePath, 'sessions', 'interrupted-session.json'),
+      'utf-8'
+    )
+    const summary = JSON.parse(summaryRaw)
+    expect(summary.recovered).toBe(true)
+    expect(summary.session_id).toBe('interrupted-session')
   })
 
   it('should reject unsafe session ids when writing summaries', async () => {

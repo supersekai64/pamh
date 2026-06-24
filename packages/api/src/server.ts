@@ -1,7 +1,8 @@
 import { randomBytes } from 'node:crypto'
 import { createReadStream, existsSync } from 'node:fs'
-import { readFile, rm, writeFile } from 'node:fs/promises'
+import { readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
+import { createRequire } from 'node:module'
 import { basename, dirname, extname, join, normalize, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
@@ -20,7 +21,10 @@ import {
   formatConceptLabel,
   generateRecommendations,
   getProjectMemoryPath,
+  getMemoryDebugStatus,
   indexAllMemories,
+  listMemories,
+  loadAutoCaptureConfig,
   normalizeConcept,
   preferContradictionRecommendation,
   recordMemoryDebugEvent,
@@ -29,7 +33,12 @@ import {
   rejectMemory,
   seedIntelligenceEvaluationDataset,
   restoreMemory,
+  saveAutoCaptureConfig,
+  setMemoryDebugMode,
+  tokenizeConceptText,
   updateMemory,
+  type AutoCaptureConfig,
+  type AutoCaptureMode,
   isMemoryScope,
   isMemoryStatus,
   isMemoryType,
@@ -38,7 +47,7 @@ import {
   type Memory,
   type SearchResult,
   type UpdateMemoryInput,
-} from 'pamh-core'
+} from '@supersekai64/pam-core'
 
 export interface LocalApiServerOptions {
   cwd?: string
@@ -101,6 +110,8 @@ interface ContextSource extends ConceptSample {
 interface ContextExclusion {
   id: string
   type: string
+  status: string
+  updated_at: string
   reason: string
 }
 
@@ -116,6 +127,36 @@ interface ViewStats {
   tags: Record<string, number>
 }
 
+interface IndexDiagnosticsResponse {
+  database: {
+    sizeBytes: number
+    files: Array<{ name: string; sizeBytes: number }>
+  }
+  sqlite: {
+    memoryRows: number
+    tagRows: number
+    chunkRows: number
+    ftsRows: number
+    latestMemoryUpdatedAt: string | null
+  }
+  markdown: {
+    memoryFiles: number
+  }
+  vectors: {
+    candidates: number
+    indexed: number
+    missing: number
+    coverage: number
+    latestUpdatedAt: string | null
+  }
+  health: {
+    status: 'ok' | 'needs-sync'
+    missingInIndex: number
+    orphanedInIndex: number
+    missingVectors: number
+  }
+}
+
 interface VisibleMemoryView {
   memories: SearchResult[]
   excludedNoise: number
@@ -126,15 +167,65 @@ interface NoiseConfig {
   ignoredConcepts: string[]
 }
 
+interface RuntimeConfig {
+  autoVectorize: boolean
+  deferThemeRebuild: boolean
+  debug: boolean
+}
+
+interface PamConfigResponse {
+  project: {
+    name: string
+    path: string
+    memoryPath: string
+  }
+  autoCapture: AutoCaptureConfig
+  noise: NoiseConfig
+  runtime: {
+    autoVectorize: boolean
+    deferThemeRebuild: boolean
+    debug: boolean
+  }
+}
+
+type PackageVersionStatus = 'up-to-date' | 'update-available' | 'ahead' | 'unknown'
+
+interface PackageBuildVersion {
+  name: string
+  label: string
+  currentVersion: string | null
+  latestVersion: string | null
+  status: PackageVersionStatus
+  error?: string
+}
+
+interface PackageVersionsResponse {
+  packages: PackageBuildVersion[]
+  checkedAt: string
+  updateCount: number
+}
+
+interface PackageVersionSpec {
+  name: string
+  label: string
+  workspaceManifest: string
+}
+
+interface LocalPackageManifest {
+  version: string
+  repositoryUrl: string | null
+}
+
 const DEFAULT_HOST = '127.0.0.1'
 const DEFAULT_PORT = 3939
 const SERVER_DIST_DIR = dirname(fileURLToPath(import.meta.url))
+const nodeRequire = createRequire(import.meta.url)
 
 function resolveDefaultStaticDir(): string {
   const candidates = [
     join(SERVER_DIST_DIR, '../../ui/dist/public'),
-    join(SERVER_DIST_DIR, '../../pamh-ui/dist/public'),
-    join(SERVER_DIST_DIR, '../node_modules/pamh-ui/dist/public'),
+    join(SERVER_DIST_DIR, '../../@supersekai64/pam-ui/dist/public'),
+    join(SERVER_DIST_DIR, '../node_modules/@supersekai64/pam-ui/dist/public'),
   ]
 
   for (const candidate of candidates) {
@@ -146,10 +237,28 @@ function resolveDefaultStaticDir(): string {
 
 const DEFAULT_STATIC_DIR = resolveDefaultStaticDir()
 const NOISE_CONFIG_FILE = 'ui-noise.json'
+const RUNTIME_CONFIG_FILE = 'runtime.json'
 const PROJECT_SCOPE = 'project'
-const PAMH_HEALTH_NAME = 'pamh'
-const SESSION_HEADER = 'x-pamh-session'
-const GENERAL_CONTEXT_IGNORED_CONCEPTS = ['migration', 'phase-2', 'pnpm', 'scope', 'project-only']
+const PAM_HEALTH_NAME = 'PAM'
+const SESSION_HEADER = 'x-pam-session'
+const PACKAGE_VERSION_CACHE_TTL_MS = 10 * 60 * 1000
+const NPM_VERSION_TIMEOUT_MS = 3000
+const PACKAGE_VERSION_SPECS: PackageVersionSpec[] = [
+  { name: '@supersekai64/pam-core', label: 'Core', workspaceManifest: '../../core/package.json' },
+  {
+    name: '@supersekai64/pam-protocol',
+    label: 'Protocol',
+    workspaceManifest: '../../mcp/package.json',
+  },
+  { name: '@supersekai64/pam-ui', label: 'UI', workspaceManifest: '../../ui/package.json' },
+  { name: '@supersekai64/pam-api', label: 'API', workspaceManifest: '../package.json' },
+  { name: '@supersekai64/pam-cli', label: 'CLI', workspaceManifest: '../../cli/package.json' },
+]
+
+let packageVersionsCache: {
+  expiresAt: number
+  response: PackageVersionsResponse
+} | null = null
 
 export function createLocalApiServer(options: LocalApiServerOptions = {}): Server {
   const cwd = options.cwd ?? process.cwd()
@@ -220,7 +329,7 @@ async function handleApiRequest(
   if (method === 'GET' && url.pathname === '/api/health') {
     sendJson(response, 200, {
       ok: true,
-      name: PAMH_HEALTH_NAME,
+      name: PAM_HEALTH_NAME,
       projectPath: cwd,
       memoryPath: basePath,
     })
@@ -244,12 +353,12 @@ async function handleApiRequest(
 
   const storeParam = url.searchParams.get('store')
   if (storeParam && storeParam !== 'project') {
-    sendJson(response, 400, { error: 'Unsupported store parameter. PAMH is project-only.' })
+    sendJson(response, 400, { error: 'Unsupported store parameter. PAM is project-only.' })
     return
   }
 
   if (method === 'POST' && url.pathname === '/api/debug/reset') {
-    if (process.env.PAMH_ENABLE_DEBUG_RESET !== '1') {
+    if (process.env.PAM_ENABLE_DEBUG_RESET !== '1') {
       sendJson(response, 404, { error: 'Not found' })
       return
     }
@@ -273,6 +382,33 @@ async function handleApiRequest(
   if (method === 'GET' && url.pathname === '/api/recommendations') {
     const report = await generateRecommendations(basePath)
     sendJson(response, 200, report)
+    return
+  }
+
+  if (method === 'GET' && url.pathname === '/api/config') {
+    sendJson(response, 200, await buildPamConfig(cwd, basePath))
+    return
+  }
+
+  if (method === 'PATCH' && url.pathname === '/api/config') {
+    const parsed = parsePamConfigPatch(await readJson(request))
+    if (!parsed.ok) return sendJson(response, 400, { error: parsed.error })
+
+    if (parsed.value.autoCapture) {
+      await saveAutoCaptureConfig(basePath, parsed.value.autoCapture)
+    }
+    if (parsed.value.noise) {
+      await writeNoiseConfig(basePath, parsed.value.noise)
+    }
+    if (parsed.value.runtime) {
+      await writeRuntimeConfig(basePath, parsed.value.runtime)
+      applyRuntimeConfig(parsed.value.runtime)
+      await setMemoryDebugMode(basePath, parsed.value.runtime.debug, {
+        agent: '@supersekai64/pam-ui',
+      })
+    }
+
+    sendJson(response, 200, await buildPamConfig(cwd, basePath))
     return
   }
 
@@ -395,6 +531,8 @@ async function handleApiRequest(
       exclusions: composition.exclusions.map(({ memory, reason }) => ({
         id: memory.id,
         type: memory.type,
+        status: memory.status,
+        updated_at: memory.updated_at,
         reason,
       })),
       calculation:
@@ -539,7 +677,7 @@ async function handleApiRequest(
   }
 
   const memoryMatch = url.pathname.match(
-    /^\/api\/memories\/([^/]+)(?:\/(archive|restore|approve|reject))?$/
+    /^\/api\/memories\/([^/]+)(?:\/(archive|restore|approve|reject|mark-noise))?$/
   )
   if (memoryMatch) {
     const id = decodeURIComponent(memoryMatch[1])
@@ -614,6 +752,16 @@ async function handleApiRequest(
       })
       return
     }
+
+    if (method === 'POST' && action === 'mark-noise') {
+      const memory = await updateMemory(basePath, id, { status: 'noise' })
+      if (!memory) return sendJson(response, 404, notFound(id))
+      sendJson(response, 200, {
+        markedNoise: true,
+        memory: normalizeNoiseMemory(memory),
+      })
+      return
+    }
   }
 
   if (method === 'GET' && url.pathname === '/api/stats') {
@@ -632,6 +780,22 @@ async function handleApiRequest(
       rawTotalMemories: view.rawTotal,
       excludedNoiseMemories: view.excludedNoise,
     })
+    return
+  }
+
+  if (method === 'GET' && url.pathname === '/api/index-stats') {
+    sendJson(response, 200, await buildIndexDiagnostics(basePath))
+    return
+  }
+
+  if (method === 'GET' && url.pathname === '/api/package-versions') {
+    sendJson(response, 200, await buildPackageVersions())
+    return
+  }
+
+  if (method === 'POST' && url.pathname === '/api/index/rebuild') {
+    const indexed = await indexAllMemories(basePath)
+    sendJson(response, 200, { indexed })
     return
   }
 
@@ -654,6 +818,333 @@ function generateSessionToken(): string {
   return randomBytes(24).toString('base64url')
 }
 
+async function buildIndexDiagnostics(basePath: string): Promise<IndexDiagnosticsResponse> {
+  const [indexedMemories, fileMemories] = await Promise.all([
+    getIndexedMemories(basePath),
+    listMemories(basePath),
+  ])
+  const database = await getDatabaseFilesSize(basePath)
+
+  const index = new MemoryIndex(basePath)
+  try {
+    const sqlite = index.getSqliteStats()
+    const vectorIds = new Set(index.getSemanticEmbeddingIds())
+    const fileIds = new Set(fileMemories.map((memory) => memory.metadata.id))
+    const indexedIds = new Set(indexedMemories.map((memory) => memory.id))
+    const vectorCandidates = indexedMemories.filter(
+      (memory) => memory.status === 'active' && !isNoiseMemory(memory)
+    )
+    const missingVectors = vectorCandidates.filter((memory) => !vectorIds.has(memory.id)).length
+    const missingInIndex = [...fileIds].filter((id) => !indexedIds.has(id)).length
+    const orphanedInIndex = [...indexedIds].filter((id) => !fileIds.has(id)).length
+
+    return {
+      database,
+      sqlite: {
+        memoryRows: sqlite.memoryRows,
+        tagRows: sqlite.tagRows,
+        chunkRows: sqlite.chunkRows,
+        ftsRows: sqlite.ftsRows,
+        latestMemoryUpdatedAt: sqlite.latestMemoryUpdatedAt,
+      },
+      markdown: {
+        memoryFiles: fileMemories.length,
+      },
+      vectors: {
+        candidates: vectorCandidates.length,
+        indexed: vectorCandidates.length - missingVectors,
+        missing: missingVectors,
+        coverage:
+          vectorCandidates.length === 0
+            ? 1
+            : (vectorCandidates.length - missingVectors) / vectorCandidates.length,
+        latestUpdatedAt: sqlite.latestSemanticUpdatedAt,
+      },
+      health: {
+        status:
+          missingInIndex === 0 && orphanedInIndex === 0 && missingVectors === 0
+            ? 'ok'
+            : 'needs-sync',
+        missingInIndex,
+        orphanedInIndex,
+        missingVectors,
+      },
+    }
+  } finally {
+    index.close()
+  }
+}
+
+async function buildPackageVersions(): Promise<PackageVersionsResponse> {
+  if (packageVersionsCache && packageVersionsCache.expiresAt > Date.now()) {
+    return packageVersionsCache.response
+  }
+
+  const packages = await Promise.all(
+    PACKAGE_VERSION_SPECS.map(async (spec) => {
+      const [localManifest, latest] = await Promise.all([
+        readPackageManifest(spec),
+        fetchLatestNpmVersion(spec.name),
+      ])
+      const repositoryError = getPackageRepositoryError(
+        localManifest,
+        latest.version,
+        latest.repositoryUrl
+      )
+      const currentVersion = localManifest?.version ?? null
+      const latestVersion = repositoryError ? null : latest.version
+      const status = getPackageVersionStatus(currentVersion, latestVersion)
+      const errors = [
+        currentVersion ? null : 'Local package manifest unavailable.',
+        latest.error,
+        repositoryError,
+      ]
+        .filter((item): item is string => Boolean(item))
+        .join(' ')
+
+      return {
+        name: spec.name,
+        label: spec.label,
+        currentVersion,
+        latestVersion,
+        status,
+        ...(errors ? { error: errors } : {}),
+      } satisfies PackageBuildVersion
+    })
+  )
+
+  const response: PackageVersionsResponse = {
+    packages,
+    checkedAt: new Date().toISOString(),
+    updateCount: packages.filter((item) => item.status === 'update-available').length,
+  }
+
+  packageVersionsCache = {
+    expiresAt: Date.now() + PACKAGE_VERSION_CACHE_TTL_MS,
+    response,
+  }
+
+  return response
+}
+
+async function readPackageManifest(spec: PackageVersionSpec): Promise<LocalPackageManifest | null> {
+  const manifestPaths = [
+    join(SERVER_DIST_DIR, spec.workspaceManifest),
+    resolveInstalledPackageManifest(spec.name),
+  ].filter((item): item is string => Boolean(item))
+
+  for (const manifestPath of manifestPaths) {
+    try {
+      const parsed = JSON.parse(await readFile(manifestPath, 'utf-8')) as {
+        name?: unknown
+        version?: unknown
+        repository?: unknown
+      }
+      if (parsed.name === spec.name && typeof parsed.version === 'string') {
+        return {
+          version: parsed.version,
+          repositoryUrl: getRepositoryUrl(parsed.repository),
+        }
+      }
+    } catch {
+      // Published installs can lack the monorepo workspace layout.
+    }
+  }
+
+  return null
+}
+
+function resolveInstalledPackageManifest(packageName: string): string | null {
+  try {
+    return join(dirname(nodeRequire.resolve(packageName)), '../package.json')
+  } catch {
+    return null
+  }
+}
+
+async function fetchLatestNpmVersion(
+  packageName: string
+): Promise<{ version: string | null; repositoryUrl: string | null; error?: string }> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), NPM_VERSION_TIMEOUT_MS)
+
+  try {
+    const response = await fetch(
+      `https://registry.npmjs.org/${encodeURIComponent(packageName)}/latest`,
+      {
+        headers: { accept: 'application/json' },
+        signal: controller.signal,
+      }
+    )
+    if (!response.ok) {
+      return { version: null, repositoryUrl: null, error: `npm returned ${response.status}.` }
+    }
+
+    const body = (await response.json()) as { version?: unknown; repository?: unknown }
+    if (typeof body.version !== 'string') {
+      return {
+        version: null,
+        repositoryUrl: null,
+        error: 'npm latest version is missing.',
+      }
+    }
+
+    return {
+      version: body.version,
+      repositoryUrl: getRepositoryUrl(body.repository),
+    }
+  } catch (error) {
+    return {
+      version: null,
+      repositoryUrl: null,
+      error: error instanceof Error ? error.message : 'npm version check failed.',
+    }
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+function getPackageRepositoryError(
+  localManifest: LocalPackageManifest | null,
+  latestVersion: string | null,
+  latestRepositoryUrl: string | null
+): string | null {
+  if (!localManifest || !latestVersion) return null
+  if (!localManifest.repositoryUrl || !latestRepositoryUrl) {
+    return 'npm package metadata could not be verified.'
+  }
+  if (repositoriesMatch(localManifest.repositoryUrl, latestRepositoryUrl)) return null
+  return 'npm package metadata does not match this repository.'
+}
+
+function repositoriesMatch(left: string | null, right: string | null): boolean {
+  const normalizedLeft = normalizeRepositoryUrl(left)
+  const normalizedRight = normalizeRepositoryUrl(right)
+  return Boolean(normalizedLeft && normalizedRight && normalizedLeft === normalizedRight)
+}
+
+function normalizeRepositoryUrl(url: string | null): string | null {
+  if (!url) return null
+
+  return url
+    .trim()
+    .toLowerCase()
+    .replace(/^git\+/, '')
+    .replace(/^git:\/\//, 'https://')
+    .replace(/^ssh:\/\/git@github\.com\//, 'https://github.com/')
+    .replace(/^git@github\.com:/, 'https://github.com/')
+    .replace(/\.git$/, '')
+}
+
+function getRepositoryUrl(repository: unknown): string | null {
+  if (typeof repository === 'string') return repository
+  if (
+    repository &&
+    typeof repository === 'object' &&
+    'url' in repository &&
+    typeof repository.url === 'string'
+  ) {
+    return repository.url
+  }
+
+  return null
+}
+
+function getPackageVersionStatus(
+  currentVersion: string | null,
+  latestVersion: string | null
+): PackageVersionStatus {
+  if (!currentVersion || !latestVersion) return 'unknown'
+
+  const comparison = compareSemver(currentVersion, latestVersion)
+  if (comparison === null) return currentVersion === latestVersion ? 'up-to-date' : 'unknown'
+  if (comparison < 0) return 'update-available'
+  if (comparison > 0) return 'ahead'
+  return 'up-to-date'
+}
+
+function compareSemver(left: string, right: string): number | null {
+  const leftVersion = parseSemver(left)
+  const rightVersion = parseSemver(right)
+  if (!leftVersion || !rightVersion) return null
+
+  const leftParts = [leftVersion.major, leftVersion.minor, leftVersion.patch]
+  const rightParts = [rightVersion.major, rightVersion.minor, rightVersion.patch]
+
+  for (let index = 0; index < leftParts.length; index += 1) {
+    if (leftParts[index] !== rightParts[index]) {
+      return leftParts[index] > rightParts[index] ? 1 : -1
+    }
+  }
+
+  if (leftVersion.prerelease === rightVersion.prerelease) return 0
+  if (!leftVersion.prerelease) return 1
+  if (!rightVersion.prerelease) return -1
+  return leftVersion.prerelease.localeCompare(rightVersion.prerelease)
+}
+
+function parseSemver(
+  version: string
+): { major: number; minor: number; patch: number; prerelease: string } | null {
+  const match = version.match(/^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?/)
+  if (!match) return null
+
+  return {
+    major: Number(match[1]),
+    minor: Number(match[2]),
+    patch: Number(match[3]),
+    prerelease: match[4] ?? '',
+  }
+}
+
+async function buildPamConfig(cwd: string, basePath: string): Promise<PamConfigResponse> {
+  const [autoCapture, noise, runtime, debugStatus] = await Promise.all([
+    loadAutoCaptureConfig(basePath),
+    readNoiseConfig(basePath),
+    readRuntimeConfig(basePath),
+    getMemoryDebugStatus(basePath),
+  ])
+  const effectiveRuntime = {
+    ...runtime,
+    debug: debugStatus.enabled,
+  }
+  applyRuntimeConfig(effectiveRuntime)
+
+  return {
+    project: {
+      name: basename(cwd),
+      path: cwd,
+      memoryPath: basePath,
+    },
+    autoCapture,
+    noise,
+    runtime: effectiveRuntime,
+  }
+}
+
+async function getDatabaseFilesSize(
+  basePath: string
+): Promise<IndexDiagnosticsResponse['database']> {
+  const names = ['memory.db', 'memory.db-wal', 'memory.db-shm']
+  const files: Array<{ name: string; sizeBytes: number }> = []
+
+  for (const name of names) {
+    try {
+      const fileStats = await stat(join(basePath, name))
+      if (fileStats.isFile()) {
+        files.push({ name, sizeBytes: fileStats.size })
+      }
+    } catch {
+      // Missing WAL/SHM files are normal.
+    }
+  }
+
+  return {
+    sizeBytes: files.reduce((total, file) => total + file.sizeBytes, 0),
+    files,
+  }
+}
+
 function isMutableMethod(method: string): boolean {
   return method === 'POST' || method === 'PATCH' || method === 'PUT' || method === 'DELETE'
 }
@@ -671,7 +1162,7 @@ function authorizeMutableRequest(
   const headerValue = request.headers[SESSION_HEADER]
   const token = Array.isArray(headerValue) ? headerValue[0] : headerValue
   if (token !== sessionToken) {
-    sendJson(response, 403, { error: 'Missing or invalid PAMH session token.' })
+    sendJson(response, 403, { error: 'Missing or invalid PAM session token.' })
     return false
   }
 
@@ -708,6 +1199,91 @@ async function readJson(request: IncomingMessage): Promise<unknown> {
 
 type ValidationResult<T> = { ok: true; value: T } | { ok: false; error: string }
 
+function parsePamConfigPatch(value: unknown): ValidationResult<{
+  autoCapture?: AutoCaptureConfig
+  noise?: NoiseConfig
+  runtime?: RuntimeConfig
+}> {
+  if (!isPlainObject(value)) return validationError('Request body must be a JSON object.')
+
+  const unknown = unknownKeys(value, ['autoCapture', 'noise', 'runtime'])
+  if (unknown.length) return validationError(`Unknown field(s): ${unknown.join(', ')}`)
+
+  const next: { autoCapture?: AutoCaptureConfig; noise?: NoiseConfig; runtime?: RuntimeConfig } = {}
+
+  if (value.autoCapture !== undefined) {
+    if (!isPlainObject(value.autoCapture)) {
+      return validationError('Field "autoCapture" must be an object when provided.')
+    }
+    const autoCaptureUnknown = unknownKeys(value.autoCapture, ['mode', 'rules', 'exclude'])
+    if (autoCaptureUnknown.length) {
+      return validationError(`Unknown autoCapture field(s): ${autoCaptureUnknown.join(', ')}`)
+    }
+    if (!isAutoCaptureMode(value.autoCapture.mode)) {
+      return validationError('Field "autoCapture.mode" must be auto, assisted, or manual.')
+    }
+    next.autoCapture = {
+      mode: value.autoCapture.mode,
+    }
+  }
+
+  if (value.noise !== undefined) {
+    if (!isPlainObject(value.noise)) {
+      return validationError('Field "noise" must be an object when provided.')
+    }
+    const noiseUnknown = unknownKeys(value.noise, ['ignoredConcepts'])
+    if (noiseUnknown.length) {
+      return validationError(`Unknown noise field(s): ${noiseUnknown.join(', ')}`)
+    }
+    if (!Array.isArray(value.noise.ignoredConcepts)) {
+      return validationError('Field "noise.ignoredConcepts" must be an array.')
+    }
+    const ignoredConcepts = value.noise.ignoredConcepts
+      .map((item) => (typeof item === 'string' ? item.trim() : ''))
+      .filter(Boolean)
+    if (ignoredConcepts.length !== value.noise.ignoredConcepts.length) {
+      return validationError('Field "noise.ignoredConcepts" must contain only non-empty strings.')
+    }
+    next.noise = {
+      ignoredConcepts: Array.from(new Set(ignoredConcepts)),
+    }
+  }
+
+  if (value.runtime !== undefined) {
+    if (!isPlainObject(value.runtime)) {
+      return validationError('Field "runtime" must be an object when provided.')
+    }
+    const runtimeUnknown = unknownKeys(value.runtime, [
+      'autoVectorize',
+      'deferThemeRebuild',
+      'debug',
+    ])
+    if (runtimeUnknown.length) {
+      return validationError(`Unknown runtime field(s): ${runtimeUnknown.join(', ')}`)
+    }
+    if (
+      typeof value.runtime.autoVectorize !== 'boolean' ||
+      typeof value.runtime.deferThemeRebuild !== 'boolean' ||
+      typeof value.runtime.debug !== 'boolean'
+    ) {
+      return validationError(
+        'Fields "runtime.autoVectorize", "runtime.deferThemeRebuild", and "runtime.debug" must be booleans.'
+      )
+    }
+    next.runtime = {
+      autoVectorize: value.runtime.autoVectorize,
+      deferThemeRebuild: value.runtime.deferThemeRebuild,
+      debug: value.runtime.debug,
+    }
+  }
+
+  return { ok: true, value: next }
+}
+
+function isAutoCaptureMode(value: unknown): value is AutoCaptureMode {
+  return value === 'auto' || value === 'assisted' || value === 'manual'
+}
+
 function parseCreateMemoryPayload(value: unknown): ValidationResult<CreateMemoryInput> {
   if (!isPlainObject(value)) return validationError('Request body must be a JSON object.')
 
@@ -717,8 +1293,10 @@ function parseCreateMemoryPayload(value: unknown): ValidationResult<CreateMemory
     'title',
     'content',
     'tags',
+    'concepts',
     'source',
     'status',
+    'theme',
     'salience',
     'supersedes',
     'source_ids',
@@ -739,6 +1317,9 @@ function parseCreateMemoryPayload(value: unknown): ValidationResult<CreateMemory
   const tags = parseOptionalStringArray(value.tags, 'tags')
   if (!tags.ok) return tags
 
+  const concepts = parseOptionalStringArray(value.concepts, 'concepts')
+  if (!concepts.ok) return concepts
+
   const sourceIds = parseOptionalStringArray(value.source_ids, 'source_ids')
   if (!sourceIds.ok) return sourceIds
 
@@ -746,7 +1327,10 @@ function parseCreateMemoryPayload(value: unknown): ValidationResult<CreateMemory
     return validationError('Field "source" must be a string when provided.')
   }
   if (value.status !== undefined && !isMemoryStatus(value.status)) {
-    return validationError('Field "status" must be a valid memory status when provided.')
+    return validationError('Field "status" must be a valid pam status when provided.')
+  }
+  if (value.theme !== undefined && typeof value.theme !== 'string') {
+    return validationError('Field "theme" must be a string when provided.')
   }
   if (value.supersedes !== undefined && typeof value.supersedes !== 'string') {
     return validationError('Field "supersedes" must be a string when provided.')
@@ -763,8 +1347,10 @@ function parseCreateMemoryPayload(value: unknown): ValidationResult<CreateMemory
       title: value.title,
       content: value.content,
       tags: tags.value,
+      concepts: concepts.value,
       source: value.source,
       status: value.status,
+      theme: value.theme,
       salience: value.salience,
       supersedes: value.supersedes,
       source_ids: sourceIds.value,
@@ -779,9 +1365,11 @@ function parseUpdateMemoryPayload(value: unknown): ValidationResult<UpdateMemory
     'content',
     'title',
     'tags',
+    'concepts',
     'type',
     'scope',
     'status',
+    'theme',
     'source_ids',
     'superseded_by',
   ])
@@ -800,7 +1388,10 @@ function parseUpdateMemoryPayload(value: unknown): ValidationResult<UpdateMemory
     return validationError('Field "scope" must be "project" when provided.')
   }
   if (value.status !== undefined && !isMemoryStatus(value.status)) {
-    return validationError('Field "status" must be a valid memory status when provided.')
+    return validationError('Field "status" must be a valid pam status when provided.')
+  }
+  if (value.theme !== undefined && typeof value.theme !== 'string') {
+    return validationError('Field "theme" must be a string when provided.')
   }
   if (value.superseded_by !== undefined && typeof value.superseded_by !== 'string') {
     return validationError('Field "superseded_by" must be a string when provided.')
@@ -809,6 +1400,9 @@ function parseUpdateMemoryPayload(value: unknown): ValidationResult<UpdateMemory
   const tags = parseOptionalStringArray(value.tags, 'tags')
   if (!tags.ok) return tags
 
+  const concepts = parseOptionalStringArray(value.concepts, 'concepts')
+  if (!concepts.ok) return concepts
+
   const sourceIds = parseOptionalStringArray(value.source_ids, 'source_ids')
   if (!sourceIds.ok) return sourceIds
 
@@ -816,9 +1410,11 @@ function parseUpdateMemoryPayload(value: unknown): ValidationResult<UpdateMemory
     content: value.content,
     title: value.title,
     tags: tags.value,
+    concepts: concepts.value,
     type: value.type,
     scope: value.scope,
     status: value.status,
+    theme: value.theme,
     source_ids: sourceIds.value,
     superseded_by: value.superseded_by,
   }
@@ -992,6 +1588,7 @@ function memoryMatchesQuery(memory: SearchResult, query: string): boolean {
     memory.source,
     memory.content,
     ...memory.tags,
+    ...memory.concepts,
   ]
     .join(' ')
     .toLowerCase()
@@ -1011,7 +1608,7 @@ function isNoiseMemory(memory: SearchResult): boolean {
     memory.status === 'noise' ||
     memory.tags.includes('noise') ||
     memory.tags.includes('ignored') ||
-    memory.tags.includes('pamh-noise') ||
+    memory.tags.includes('pam-noise') ||
     memory.source === 'noise'
   )
 }
@@ -1026,7 +1623,7 @@ function normalizeNoiseMemory(memory: Memory): Memory {
     memory.metadata.status === 'noise' ||
     tags.includes('noise') ||
     tags.includes('ignored') ||
-    tags.includes('pamh-noise')
+    tags.includes('pam-noise')
 
   return hasNoiseMarker ? { ...memory, metadata: { ...memory.metadata, status: 'noise' } } : memory
 }
@@ -1082,6 +1679,45 @@ async function writeNoiseConfig(basePath: string, config: NoiseConfig): Promise<
   await writeFile(join(basePath, NOISE_CONFIG_FILE), JSON.stringify(config, null, 2), 'utf-8')
 }
 
+async function readRuntimeConfig(basePath: string): Promise<RuntimeConfig> {
+  const fallback = getRuntimeConfigFromEnv()
+  const filePath = join(basePath, RUNTIME_CONFIG_FILE)
+  if (!existsSync(filePath)) return fallback
+
+  try {
+    const parsed = JSON.parse(await readFile(filePath, 'utf-8')) as Partial<RuntimeConfig>
+    return {
+      autoVectorize:
+        typeof parsed.autoVectorize === 'boolean' ? parsed.autoVectorize : fallback.autoVectorize,
+      deferThemeRebuild:
+        typeof parsed.deferThemeRebuild === 'boolean'
+          ? parsed.deferThemeRebuild
+          : fallback.deferThemeRebuild,
+      debug: typeof parsed.debug === 'boolean' ? parsed.debug : fallback.debug,
+    }
+  } catch {
+    return fallback
+  }
+}
+
+async function writeRuntimeConfig(basePath: string, config: RuntimeConfig): Promise<void> {
+  await writeFile(join(basePath, RUNTIME_CONFIG_FILE), JSON.stringify(config, null, 2), 'utf-8')
+}
+
+function getRuntimeConfigFromEnv(): RuntimeConfig {
+  return {
+    autoVectorize: process.env.PAM_AUTO_VECTORIZE !== '0',
+    deferThemeRebuild: process.env.PAM_DEFER_THEME_REBUILD === '1',
+    debug: ['1', 'true', 'yes', 'on'].includes((process.env.PAM_DEBUG ?? '').toLowerCase()),
+  }
+}
+
+function applyRuntimeConfig(config: RuntimeConfig): void {
+  process.env.PAM_AUTO_VECTORIZE = config.autoVectorize ? '1' : '0'
+  process.env.PAM_DEFER_THEME_REBUILD = config.deferThemeRebuild ? '1' : '0'
+  process.env.PAM_DEBUG = config.debug ? '1' : '0'
+}
+
 function parseBoolean(value: string | null): boolean {
   return ['1', 'true', 'yes', 'on'].includes((value ?? '').toLowerCase())
 }
@@ -1124,14 +1760,22 @@ function buildConceptGraph(
       string,
       { category: 'tag' | 'keyword'; title: string; weight: number }
     >()
+    const clientConcepts = getClientConceptCandidates(memory)
+    const semanticTags = clientConcepts.length ? [] : getContentSupportedTags(memory)
 
-    for (const candidate of extractConceptCandidates(memory.content, memory.tags)) {
-      if (ignored.has(candidate.id)) continue
-      const current = candidates.get(candidate.id)
-      candidates.set(candidate.id, {
-        category: current?.category === 'tag' ? 'tag' : candidate.category,
-        title: candidate.title,
-        weight: (current?.weight ?? 0) + candidate.weight,
+    const extractedCandidates = clientConcepts.length
+      ? clientConcepts
+      : extractConceptCandidates(memory.content, semanticTags)
+
+    for (const candidate of extractedCandidates) {
+      const concept = mapContextConceptCandidate(candidate, memory)
+      if (!concept) continue
+      if (ignored.has(concept.id)) continue
+      const current = candidates.get(concept.id)
+      candidates.set(concept.id, {
+        category: current?.category === 'tag' ? 'tag' : concept.category,
+        title: concept.title,
+        weight: (current?.weight ?? 0) + concept.weight,
       })
     }
 
@@ -1162,7 +1806,7 @@ function buildConceptGraph(
           bucket.lastUpdated = memory.updated_at
         }
         if (bucket.samples.length < 6) bucket.samples.push(toConceptSample(memory))
-        memory.tags
+        semanticTags
           .filter((tag) => normalizeConcept(tag))
           .slice(0, 4)
           .forEach((tag) => bucket.evidence.add(formatConceptLabel(tag)))
@@ -1226,6 +1870,104 @@ function buildConceptGraph(
   }
 }
 
+function mapContextConceptCandidate(
+  candidate: { id: string; title: string; category: 'tag' | 'keyword'; weight: number },
+  memory: SearchResult
+): { id: string; title: string; category: 'tag' | 'keyword'; weight: number } | null {
+  if (isMemoryFieldConcept(candidate.id, memory)) return null
+
+  return candidate
+}
+
+function getContentSupportedTags(memory: SearchResult): string[] {
+  return memory.tags.filter((tag) => {
+    const normalized = normalizeConcept(tag)
+    if (!normalized) return false
+    if (isMemoryFieldConcept(normalized, memory)) return false
+    return contentSupportsConcept(memory.content, normalized)
+  })
+}
+
+function getClientConceptCandidates(
+  memory: SearchResult
+): Array<{ id: string; title: string; category: 'tag'; weight: number }> {
+  return memory.concepts
+    .map((concept) => normalizeConcept(concept))
+    .filter((concept): concept is string => Boolean(concept))
+    .filter((concept) => !isMemoryFieldConcept(concept, memory))
+    .map((concept) => ({
+      id: concept,
+      title: formatConceptLabel(concept),
+      category: 'tag' as const,
+      weight: 8,
+    }))
+}
+
+function contentSupportsConcept(content: string, concept: string): boolean {
+  const normalized = normalizeConcept(concept)
+  if (!normalized) return false
+
+  const conceptParts = normalized.split(/[\s-]+/).filter(Boolean)
+  const tokens = tokenizeConceptText(content)
+  if (!conceptParts.length || !tokens.length) return false
+
+  if (conceptParts.length === 1) return tokens.includes(conceptParts[0])
+
+  for (let index = 0; index <= tokens.length - conceptParts.length; index += 1) {
+    if (conceptParts.every((part, offset) => tokens[index + offset] === part)) return true
+  }
+
+  const conceptSignature = getConceptSignature(normalized)
+  if (!conceptSignature) return false
+
+  return extractConceptCandidates(content)
+    .map((candidate) => getConceptSignature(candidate.id))
+    .some((signature) => signature === conceptSignature)
+}
+
+function isMemoryFieldConcept(value: string, memory: SearchResult): boolean {
+  const normalized = normalizeConcept(value)
+  if (!normalized) return true
+  if (isMemoryType(normalized) || isMemoryScope(normalized) || isMemoryStatus(normalized))
+    return true
+
+  const facetIds = getMemoryFacetConceptIds(memory)
+  const signature = getConceptSignature(normalized)
+  return facetIds.has(normalized) || Boolean(signature && facetIds.has(signature))
+}
+
+function getMemoryFacetConceptIds(memory: SearchResult): Set<string> {
+  const ids = new Set<string>()
+  const add = (value: string | undefined) => {
+    if (!value) return
+    const normalized = normalizeConcept(value)
+    if (!normalized) return
+    ids.add(normalized)
+    const signature = getConceptSignature(normalized)
+    if (signature) ids.add(signature)
+  }
+
+  add(memory.type)
+  add(memory.scope)
+  add(memory.status)
+  add(memory.theme)
+  add(memory.source)
+
+  memory.source
+    .split(/[^A-Za-z0-9+#.]+/)
+    .filter(Boolean)
+    .forEach(add)
+
+  return ids
+}
+
+function getConceptSignature(value: string): string | null {
+  const normalized = normalizeConcept(value)
+  if (!normalized) return null
+  const signature = normalized.replace(/[\s-]+/g, '')
+  return signature || null
+}
+
 function filterContextConceptGraph(
   graph: { totalMemories: number; concepts: ConceptNode[]; edges: ConceptEdge[] },
   query: string | undefined
@@ -1271,6 +2013,7 @@ function buildContextPreview(
   content: string
   tokenEstimate: number
   memoryCount: number
+  activeMemoryCount: number
   sources: ContextSource[]
   topConcepts: Array<{ title: string; occurrences: number; score: number }>
   generatedAt: string
@@ -1278,6 +2021,9 @@ function buildContextPreview(
 } {
   const generatedAt = new Date().toISOString()
   const composition = composeCoreContextSources(memories, query, maxMemories)
+  const activeMemoryCount = memories.filter(
+    (memory) => memory.status === 'active' && !isNoiseMemory(memory)
+  ).length
   const concepts = filterContextConceptGraph(
     buildConceptGraph(
       composition.selected.map((source) => source.memory),
@@ -1292,7 +2038,8 @@ function buildContextPreview(
     `Generated at: ${generatedAt}`,
     query ? `Focused concept/query: ${query}` : 'Focused concept/query: general project memory',
     'Store: project',
-    'Policy: active durable memories first; noise, deleted, archived, proposed, duplicate implementation summaries, and lower-ranked overflow are excluded.',
+    `Selected prompt sources: ${countLabel(composition.selected.length, 'source', 'sources')} from ${countLabel(activeMemoryCount, 'active memory', 'active memories')}.`,
+    'Selection policy: active durable memories are ranked first; noise, deleted, archived, proposed, duplicate implementation summaries, and lower-ranked overflow are excluded.',
     '',
     '## Strong Concepts',
     '',
@@ -1335,6 +2082,7 @@ function buildContextPreview(
     content,
     tokenEstimate: Math.ceil(content.length / 4),
     memoryCount: composition.selected.length,
+    activeMemoryCount,
     sources: orderedSources.map((source) => ({
       ...toConceptSample(source.memory),
       section: source.section,
@@ -1349,6 +2097,8 @@ function buildContextPreview(
     exclusions: composition.exclusions.map(({ memory, reason }) => ({
       id: memory.id,
       type: memory.type,
+      status: memory.status,
+      updated_at: memory.updated_at,
       reason,
     })),
   }
@@ -1385,11 +2135,8 @@ function groupContextSources(
 }
 
 function getContextIgnoredConcepts(query: string | undefined, ignoredConcepts: string[]): string[] {
-  if (query?.trim()) {
-    return ignoredConcepts
-  }
-
-  return [...new Set([...ignoredConcepts, ...GENERAL_CONTEXT_IGNORED_CONCEPTS])]
+  void query
+  return [...new Set(ignoredConcepts)]
 }
 
 function buildConsolidatedMemoryContent(concept: string, memories: SearchResult[]): string {
@@ -1441,8 +2188,8 @@ function getMemoryStrength(memory: SearchResult): number {
 }
 
 function getMinimumConceptOccurrences(memoryCount: number): number {
-  if (memoryCount < 20) return 1
-  if (memoryCount < 100) return 2
+  if (memoryCount < 8) return 1
+  if (memoryCount < 100) return 3
   return Math.max(5, Math.min(40, Math.ceil(memoryCount * 0.018)))
 }
 

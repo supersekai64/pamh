@@ -15,7 +15,7 @@ describe('supersession', () => {
   let basePath: string
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'pamh-supersession-test-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'pam-supersession-test-'))
     basePath = await initProjectMemory(tempDir)
   })
 

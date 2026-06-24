@@ -1,9 +1,10 @@
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { existsSync } from 'node:fs'
-import { listMemories } from './storage.js'
+import { indexAllMemories, listMemories } from './storage.js'
 import { recordMemoryDebugEvent } from './memory-debug.js'
 import { normalizeConcept } from './concepts.js'
+import { MemoryIndex, type ThemeCompilation } from './indexer.js'
 import type { Memory, MemoryScope, MemoryStatus, MemoryType } from './types.js'
 
 export interface CompileContextOptions {
@@ -16,6 +17,7 @@ export interface CompileContextOptions {
 export interface CompiledContext {
   content: string
   tokenCount: number
+  themeCompilations: ThemeCompilation[]
   sources: {
     project: Memory[]
     search: Memory[]
@@ -55,7 +57,6 @@ const DEFAULT_MAX_TOKENS = 4000
 const CHARS_PER_TOKEN = 4
 const MAX_GENERAL_CONTEXT_SESSIONS = 0
 const MAX_FOCUSED_CONTEXT_SESSIONS = 4
-const GENERAL_CONTEXT_IGNORED_CONCEPTS = ['migration', 'phase-2', 'pnpm', 'scope', 'project-only']
 const CONTEXT_TYPE_WEIGHTS: Record<string, number> = {
   rule: 1000,
   decision: 930,
@@ -66,6 +67,7 @@ const CONTEXT_TYPE_WEIGHTS: Record<string, number> = {
   pattern: 660,
   client: 600,
   session: 160,
+  exchange: 130,
 }
 
 const CONTEXT_SECTION_TITLES: Record<string, string> = {
@@ -78,6 +80,7 @@ const CONTEXT_SECTION_TITLES: Record<string, string> = {
   pattern: 'Reusable Patterns',
   client: 'Client Context',
   session: 'Recent Activity',
+  exchange: 'Recent Raw Exchanges',
 }
 
 export async function compileContext(
@@ -95,18 +98,21 @@ export async function compileContext(
     project: [] as Memory[],
     search: [] as Memory[],
   }
+  let themeCompilations: ThemeCompilation[] = []
 
   let composition: ContextComposition = { selected: [], exclusions: [] }
-  let content = formatCompiledContext(composition, query)
+  let content = formatCompiledContext(composition, query, themeCompilations)
 
   if (existsSync(projectBasePath) && (includeProject || includeSearch)) {
+    await indexAllMemories(projectBasePath)
+    themeCompilations = includeProject ? getRelevantThemeCompilations(projectBasePath, query) : []
     const memories = (await listMemories(projectBasePath)).map(memoryToContextMemory)
     const contextQuery = includeSearch ? query : undefined
     const maxMemories = includeProject ? Math.max(memories.length, 1) : query ? 10 : 0
     composition = composeContextSources(memories, contextQuery, maxMemories)
 
     while (composition.selected.length > 0) {
-      content = formatCompiledContext(composition, query)
+      content = formatCompiledContext(composition, query, themeCompilations)
       if (estimateTokens(content) <= maxTokens) break
 
       const removed = composition.selected[composition.selected.length - 1]
@@ -119,13 +125,18 @@ export async function compileContext(
       }
     }
 
-    content = formatCompiledContext(composition, query)
+    content = formatCompiledContext(composition, query, themeCompilations)
     while (estimateTokens(content) > maxTokens && composition.exclusions.length > 0) {
       composition = {
         selected: composition.selected,
         exclusions: composition.exclusions.slice(0, -1),
       }
-      content = formatCompiledContext(composition, query)
+      content = formatCompiledContext(composition, query, themeCompilations)
+    }
+
+    while (estimateTokens(content) > maxTokens && themeCompilations.length > 0) {
+      themeCompilations = themeCompilations.slice(0, -1)
+      content = formatCompiledContext(composition, query, themeCompilations)
     }
 
     const selectedMemories = composition.selected.map((source) =>
@@ -158,12 +169,14 @@ export async function compileContext(
         search: sources.search.map((memory) => memory.metadata.id),
       },
       exclusion_count: composition.exclusions.length,
+      theme_compilation_count: themeCompilations.length,
     },
   })
 
   return {
     content,
     tokenCount,
+    themeCompilations,
     sources,
   }
 }
@@ -199,7 +212,11 @@ function estimateTokens(text: string): number {
   return estimateContextTokens(text)
 }
 
-function formatCompiledContext(composition: ContextComposition, query?: string): string {
+function formatCompiledContext(
+  composition: ContextComposition,
+  query: string | undefined,
+  themeCompilations: ThemeCompilation[]
+): string {
   let content = '# Compiled Context\n\n'
   content += `Generated at: ${new Date().toISOString()}\n`
   if (query) {
@@ -208,6 +225,17 @@ function formatCompiledContext(composition: ContextComposition, query?: string):
   content +=
     'Policy: active durable memories first; noise, deleted, archived, proposed, duplicate implementation summaries, and lower-ranked overflow are excluded.\n'
   content += '\n---\n\n'
+
+  if (themeCompilations.length > 0) {
+    content += '## Compiled Themes\n\n'
+    for (const compilation of themeCompilations) {
+      content += `### ${compilation.title}\n\n`
+      content += `- **Theme**: ${compilation.theme}\n`
+      content += `- **Sources**: ${compilation.source_count}\n`
+      content += `- **Updated**: ${compilation.updated_at}\n\n`
+      content += `${compilation.content}\n\n---\n\n`
+    }
+  }
 
   if (composition.selected.length > 0) {
     content += '## Selected Memories\n\n'
@@ -231,6 +259,23 @@ function formatCompiledContext(composition: ContextComposition, query?: string):
   return content
 }
 
+function getRelevantThemeCompilations(projectBasePath: string, query?: string): ThemeCompilation[] {
+  const index = new MemoryIndex(projectBasePath)
+  try {
+    index.rebuildThemeCompilations()
+    const compilations = index.getThemeCompilations()
+    const relevant = query?.trim()
+      ? compilations.filter((compilation) =>
+          contextTextMatchesQuery(themeSearchBlob(compilation), query)
+        )
+      : compilations
+
+    return relevant.slice(0, 8)
+  } finally {
+    index.close()
+  }
+}
+
 function formatMemory(source: RankedContextSource): string {
   const { memory } = source
   let output = `#### ${memory.id}\n\n`
@@ -249,7 +294,7 @@ export function isContextNoiseMemory(memory: ContextMemory): boolean {
     memory.status === 'noise' ||
     memory.tags.includes('noise') ||
     memory.tags.includes('ignored') ||
-    memory.tags.includes('pamh-noise') ||
+    memory.tags.includes('pam-noise') ||
     memory.source === 'noise'
   )
 }
@@ -287,8 +332,8 @@ export function composeContextSources<T extends ContextMemory>(
     }))
     .sort((a, b) => b.score - a.score || b.memory.updated_at.localeCompare(a.memory.updated_at))
 
-  const durable = ranked.filter((item) => item.memory.type !== 'session')
-  const sessions = ranked.filter((item) => item.memory.type === 'session')
+  const durable = ranked.filter((item) => !isRecentActivityType(item.memory.type))
+  const sessions = ranked.filter((item) => isRecentActivityType(item.memory.type))
   const durableLimit = Math.max(0, maxMemories - Math.min(maxSessions, sessions.length))
   const selected = durable.slice(0, durableLimit)
   const selectedIds = new Set(selected.map((item) => item.memory.id))
@@ -332,11 +377,9 @@ function getContextScore(memory: ContextMemory, focused: boolean): number {
   const typeScore = CONTEXT_TYPE_WEIGHTS[memory.type] ?? 500
   const recencyScore = getRecencyScore(memory.updated_at)
   const tagScore = Math.min(memory.tags.length, 6) * 4
-  const generalMetaPenalty =
-    !focused && memory.tags.some((tag) => GENERAL_CONTEXT_IGNORED_CONCEPTS.includes(tag)) ? 80 : 0
   const implementationPenalty = !focused && isImplementationSummary(memory) ? 120 : 0
 
-  return typeScore + recencyScore + tagScore - generalMetaPenalty - implementationPenalty
+  return typeScore + recencyScore + tagScore - implementationPenalty
 }
 
 function getRecencyScore(updatedAt: string): number {
@@ -355,7 +398,7 @@ function getContextReasons(memory: ContextMemory, focused: boolean): string[] {
   if (['rule', 'decision', 'preference', 'knowledge'].includes(memory.type)) {
     reasons.push('durable context')
   }
-  if (memory.type === 'session') {
+  if (isRecentActivityType(memory.type)) {
     reasons.push('limited recent activity')
   }
   if (focused) {
@@ -365,24 +408,39 @@ function getContextReasons(memory: ContextMemory, focused: boolean): string[] {
 }
 
 function contextMemoryMatchesQuery(memory: ContextMemory, query: string): boolean {
+  return contextTextMatchesQuery(
+    [
+      memory.id,
+      memory.type,
+      memory.scope,
+      memory.status,
+      memory.source,
+      memory.content,
+      ...memory.tags,
+    ].join(' '),
+    query
+  )
+}
+
+function contextTextMatchesQuery(text: string, query: string): boolean {
   const normalizedQuery = normalizeConcept(query) ?? query.toLowerCase().trim()
   if (!normalizedQuery) return true
   const terms = normalizedQuery.split(/\s+/).filter(Boolean)
-  const blob = [
-    memory.id,
-    memory.type,
-    memory.scope,
-    memory.status,
-    memory.source,
-    memory.content,
-    ...memory.tags,
-  ]
-    .join(' ')
+  const blob = text
     .toLowerCase()
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
 
   return terms.every((term) => blob.includes(term))
+}
+
+function themeSearchBlob(compilation: ThemeCompilation): string {
+  return [
+    compilation.theme,
+    compilation.title,
+    compilation.content,
+    ...compilation.source_ids,
+  ].join(' ')
 }
 
 function isDuplicateImplementationSummary(
@@ -424,6 +482,7 @@ function groupContextSources(
     'Reusable Patterns',
     'Client Context',
     'Recent Activity',
+    'Recent Raw Exchanges',
   ]
   const groups = new Map<string, RankedContextSource[]>()
 
@@ -434,6 +493,10 @@ function groupContextSources(
   return [...groups.entries()].sort(
     (a, b) => sectionOrder(order, a[0]) - sectionOrder(order, b[0]) || a[0].localeCompare(b[0])
   )
+}
+
+function isRecentActivityType(type: string): boolean {
+  return type === 'session' || type === 'exchange'
 }
 
 function sectionOrder(order: string[], section: string): number {

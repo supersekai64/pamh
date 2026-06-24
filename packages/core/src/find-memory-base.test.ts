@@ -8,7 +8,7 @@ describe('findMemoryBase', () => {
   let tempDir: string
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'pamh-find-memory-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'pam-find-memory-'))
   })
 
   afterEach(async () => {
@@ -58,7 +58,7 @@ describe('getProjectMemoryPath with parent lookup', () => {
   let tempDir: string
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'pamh-get-path-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'pam-get-path-'))
   })
 
   afterEach(async () => {

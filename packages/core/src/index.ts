@@ -22,7 +22,14 @@ export {
   scanMemoryFileIssues,
   type MemoryFileIssue,
 } from './storage.js'
-export { MemoryIndex, type SearchOptions, type SearchResult, type IndexStats } from './indexer.js'
+export {
+  MemoryIndex,
+  type SearchOptions,
+  type SearchResult,
+  type IndexStats,
+  type SqliteIndexStats,
+  type ThemeCompilation,
+} from './indexer.js'
 export {
   expandNaturalQuery,
   matchesNaturalSearch,
@@ -68,17 +75,32 @@ export {
   formatConceptLabel,
   isStopConcept,
   normalizeConcept,
+  normalizeConceptList,
   tokenizeConceptText,
   type ConceptCandidate,
   type ConceptCategory,
 } from './concepts.js'
 export {
   createEmbeddingProvider,
+  HashEmbeddingProvider,
   LocalEmbeddingProvider,
   OpenAIEmbeddingProvider,
   type EmbeddingProvider,
 } from './embedding.js'
-export { SemanticIndex, type SemanticSearchResult } from './semantic.js'
+export {
+  SemanticIndex,
+  autoIndexSemanticMemory,
+  removeSemanticMemory,
+  type SemanticSearchResult,
+} from './semantic.js'
+export {
+  formatMemoryTheme,
+  inferMemoryTheme,
+  isMemoryTheme,
+  normalizeMemoryTheme,
+  type MemoryTheme,
+} from './themes.js'
+export { generateMemoryTitle } from './titles.js'
 export {
   createIntelligentMemory,
   splitMemorySignals,

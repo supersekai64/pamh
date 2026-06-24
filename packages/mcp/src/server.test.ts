@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { createPamhMcpServer } from './server.js'
+import { createPamMcpServer } from './server.js'
 
-describe('PAMH MCP server contract', () => {
+describe('PAM MCP server contract', () => {
   it('registers the documented memory and intelligence tools', () => {
-    const server = createPamhMcpServer({ cwd: process.cwd() })
+    const server = createPamMcpServer({ cwd: process.cwd() })
     const registeredTools = Object.keys(
       (server as unknown as { _registeredTools: Record<string, unknown> })._registeredTools
     )
@@ -26,12 +26,15 @@ describe('PAMH MCP server contract', () => {
   })
 
   it('ships explicit capture workflow instructions to MCP clients', () => {
-    const server = createPamhMcpServer({ cwd: process.cwd() })
+    const server = createPamMcpServer({ cwd: process.cwd() })
     const instructions = (server as unknown as { server: { _instructions?: string } }).server
       ._instructions
 
     expect(instructions).toContain('At the start of every task')
     expect(instructions).toContain('memory_checkpoint')
-    expect(instructions).toContain('PAMH is project-only')
+    expect(instructions).toContain('Strong concepts')
+    expect(instructions).toContain('concepts')
+    expect(instructions).toContain('PAM is project-only')
+    expect(instructions).toContain('Capture is automatic by default')
   })
 })

@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const PACKAGE_NAME = 'pamh-cli'
+const PACKAGE_NAME = '@supersekai64/pam-cli'
 const DEFAULT_DEFER_TIMEOUT_MS = 15_000
 const DEFAULT_DEFER_POLL_MS = 500
 
@@ -17,9 +17,9 @@ async function main() {
     return
   }
 
-  if (process.env.PAMH_SKIP_PROJECT_INIT === '1') return
+  if (process.env.PAM_SKIP_PROJECT_INIT === '1') return
   if (isGlobalInstall()) {
-    console.log('[pamh] Global CLI installed. Run `memory init` inside a project to bootstrap it.')
+    console.log('[PAM] Global CLI installed. Run `pam init` inside a project to bootstrap it.')
     return
   }
 
@@ -39,8 +39,8 @@ async function main() {
 
 async function runDeferredInit(projectPath) {
   const deadline =
-    Date.now() + readPositiveIntEnv('PAMH_POSTINSTALL_TIMEOUT_MS', DEFAULT_DEFER_TIMEOUT_MS)
-  const pollMs = readPositiveIntEnv('PAMH_POSTINSTALL_POLL_MS', DEFAULT_DEFER_POLL_MS)
+    Date.now() + readPositiveIntEnv('PAM_POSTINSTALL_TIMEOUT_MS', DEFAULT_DEFER_TIMEOUT_MS)
+  const pollMs = readPositiveIntEnv('PAM_POSTINSTALL_POLL_MS', DEFAULT_DEFER_POLL_MS)
 
   while (Date.now() <= deadline) {
     const packageJson = readPackageJson(resolve(projectPath, 'package.json'))
@@ -70,7 +70,7 @@ function scheduleDeferredInit(projectPath) {
 async function initializeProject(projectPath) {
   try {
     const { configureProjectIntegrations, initAutoCaptureConfig, initProjectMemory } =
-      await import('pamh-core')
+      await import('@supersekai64/pam-core')
     const memoryPath = await initProjectMemory(projectPath)
     await initAutoCaptureConfig(memoryPath)
     const { results } = await configureProjectIntegrations(projectPath)
@@ -78,18 +78,18 @@ async function initializeProject(projectPath) {
       (result) => result.status === 'created' || result.status === 'updated'
     )
 
-    console.log(`[pamh] Project memory initialized at ${memoryPath}`)
+    console.log(`[PAM] Project memory initialized at ${memoryPath}`)
     if (changed.length > 0) {
-      console.log(`[pamh] Wrote ${changed.length} agent/IDE integration file(s).`)
+      console.log(`[PAM] Wrote ${changed.length} agent/IDE integration file(s).`)
     }
     console.log(
-      '[pamh] Reload VS Code/Cursor, start a new Claude Code/OpenCode session, or restart/open a new Codex session.'
+      '[PAM] Reload VS Code/Cursor, start a new Claude Code/OpenCode session, or restart/open a new Codex session.'
     )
   } catch (error) {
     console.warn(
-      `[pamh] Project memory auto-init skipped: ${error instanceof Error ? error.message : String(error)}`
+      `[PAM] Project memory auto-init skipped: ${error instanceof Error ? error.message : String(error)}`
     )
-    console.warn('[pamh] You can run `memory init` manually inside the project.')
+    console.warn('[PAM] You can run `pam init` manually inside the project.')
   }
 }
 

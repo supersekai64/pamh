@@ -1,13 +1,16 @@
 # Intelligence Layer
 
-PAMH includes an assisted intelligence layer for memory maintenance. It is
-deterministic first: recommendations, cleanup, distillation, and graph previews
-are generated from local memory signals before any optional LLM enrichment.
+PAM includes an automatic intelligence layer for pam capture and
+maintenance. It is deterministic first: same-theme consolidation, contradiction
+handling, theme compilation, recommendations, cleanup, distillation, and graph
+previews are generated from local memory signals before any optional LLM
+enrichment.
 
 ## Foundations
 
 Markdown memories remain the source of truth. SQLite remains the index/query
-layer.
+layer and stores compiled theme summaries derived from active Markdown
+memories.
 
 Synthetic memories and graph relations preserve evidence through `source_ids`
 or `evidence_ids`. This lets the user inspect why a recommendation, distilled
@@ -16,48 +19,70 @@ memory, or relation exists.
 Important boundaries:
 
 - Observations are append-only hook/debug records.
+- Raw `exchange` memories are redacted Markdown records created from textual
+  hooks. They include a compact `Simplified` section plus the preserved raw
+  exchange body for auditability.
 - Recommendations are review objects and do not mutate memory by themselves.
 - Memories are durable Markdown records.
-- Knowledge Graph relations are generated as proposed, evidence-backed edges.
+- Theme compilations are derived SQLite rows and can be rebuilt.
+- Knowledge Graph relations are generated as preview-only, evidence-backed edges.
 
 ## Intelligent Capture
 
 The MCP capture path consolidates memory as early as possible. When `add_memory`
-or `memory_checkpoint` receives a durable signal, PAMH compares it with active
+or `memory_checkpoint` receives a durable signal, PAM compares it with active
 and proposed memories of the same type and scope.
 
-- If the closest same-theme match is proposed, PAMH merges the new signal into
+- If the closest same-theme match is proposed, PAM merges the new signal into
   that proposal instead of creating another review item.
+- If a same-theme memory appears to contradict the new signal, PAM creates a
+  supersession instead of merging the two statements.
 - If the closest same-theme match is active, assisted mode creates a proposed
   supersession with `supersedes` and `source_ids` so the user can review the
   replacement.
-- In auto mode, the same high-confidence match can supersede active memory
-  directly, archiving the older version and keeping the chain inspectable.
+- In auto mode, high-confidence matches and contradictions can supersede active
+  pam directly, archiving the older version and keeping the chain
+  inspectable.
+
+## Theme Compilation
+
+Each memory gets a broad, agent-friendly theme such as `instruction`,
+`decision`, or `issue`.
+After normal memory writes, PAM rebuilds SQLite `theme_compilations` from the
+active memory set. `compile_context` reads these compact rows before individual
+memories so the LLM sees the reduced category-level context first.
 
 Checkpoint bullet lists are segmented only when every bullet is already a
 standalone durable signal. This keeps capture close to native LLM memory while
 preserving auditability and source evidence.
+
+## Optional Diagnostics
+
+The default PAM path is automatic: capture, contradiction handling, theme
+compilation, vectorization, and context retrieval run without a manual review
+queue. The tools below remain available for audits, debugging, and sensitive
+projects, but normal operation should not depend on them.
 
 ## Recommendations
 
 Generate reviewable maintenance recommendations:
 
 ```bash
-memory intelligence recommend
+pam intelligence recommend
 ```
 
 List stored recommendations:
 
 ```bash
-memory intelligence list
+pam intelligence list
 ```
 
 Apply, reject, or defer one recommendation:
 
 ```bash
-memory intelligence apply <id>
-memory intelligence reject <id>
-memory intelligence defer <id>
+pam intelligence apply <id>
+pam intelligence reject <id>
+pam intelligence defer <id>
 ```
 
 Recommendation types include:
@@ -88,7 +113,7 @@ require trusting a hidden model decision.
 Preview grouped cleanup recommendations:
 
 ```bash
-memory intelligence cleanup
+pam intelligence cleanup
 ```
 
 Supported actions include:
@@ -100,31 +125,33 @@ Supported actions include:
 - `physical_delete`
 
 Physical delete requires explicit confirmation when applied. Reversible actions
-use normal memory status changes.
+use normal pam status changes.
 
 ## Distillation
 
 Preview repeated concepts that can become synthetic memories:
 
 ```bash
-memory intelligence distill
+pam intelligence distill
 ```
 
-Create proposed distilled memories:
+Create distilled memories:
 
 ```bash
-memory intelligence distill --apply
+pam intelligence distill --apply
 ```
 
-Distilled memories use `source: distillation`, default to `status: proposed`,
-and preserve all evidence memory IDs in `source_ids`.
+Distilled memories use `source: distillation`, default to `status: active`, and
+preserve all evidence memory IDs in `source_ids`. Theme compilations are
+separate derived SQLite rows; distilled memories remain auditable Markdown. In
+assisted review workflows, callers can still create them as `proposed`.
 
 ## Knowledge Graph
 
 Preview explicit entities and typed relations:
 
 ```bash
-memory intelligence graph
+pam intelligence graph
 ```
 
 Entities include concepts, decisions, rules, files, projects, stacks, APIs,
@@ -152,7 +179,7 @@ relations remain reviewable previews rather than permanent mutations.
 Seed the shared intelligence evaluation dataset:
 
 ```bash
-memory intelligence seed-eval
+pam intelligence seed-eval
 ```
 
 The dataset creates 270 memories covering active memories, near duplicates,

@@ -19,7 +19,7 @@ Location: `.ai-memory` (discovered by walking up the directory tree)
 
 Contains project-specific knowledge such as architecture, current state, tasks, and sessions.
 
-PAMH searches for `.ai-memory/` by walking up the directory tree, similar to how `.git` works. This allows:
+PAM searches for `.ai-memory/` by walking up the directory tree, similar to how `.git` works. This allows:
 
 - **Shared memory**: initialize in a parent directory, all subdirectories use it
 - **Isolated memory**: initialize in a specific subdirectory for project-specific memory
@@ -30,19 +30,20 @@ See [docs/concepts.md](concepts.md#memory-discovery) for details.
 
 ## Packages
 
-### pamh-core
+### @supersekai64/pam-core
 
 Responsible for storage, indexing, search, import, export, context compilation,
-semantic search, lifecycle hook capture, and deterministic intelligence
+semantic search, lifecycle hook capture, raw exchange capture, theme
+compilation, contradiction-aware capture, and deterministic intelligence
 analysis. It has no CLI or MCP dependency.
 
-### pamh-cli
+### @supersekai64/pam-cli
 
 Command-line interface published to npm. Depends on core, API, and the
-`pamh-protocol` package; `memory server start` delegates to that shared MCP
+`@supersekai64/pam-protocol` package; `pam server start` delegates to that shared MCP
 server implementation.
 
-### pamh-api
+### @supersekai64/pam-api
 
 Local HTTP API for human-facing clients. It binds to `127.0.0.1` by default,
 uses a per-instance token for mutable requests, and delegates persistence plus
@@ -50,14 +51,16 @@ context source selection to core. The API owns UI-facing projections such as
 concept graphs and evidence views. Future desktop apps and IDE extensions can
 use this API boundary from separate repositories.
 
-### pamh-ui
+### @supersekai64/pam-ui
 
 Static local web UI served by the local API server. It does not own data or contain persistence logic.
 
 ## Storage
 
-- **Source of truth**: Markdown
+- **Source of truth**: Markdown memory files, including `exchange` memories with
+  simplified review text and preserved raw exchange text
 - **Index**: SQLite (`memory.db`)
+- **Compiled themes**: SQLite `theme_compilations`, rebuilt from active Markdown memories
 
 ## Search
 
@@ -65,6 +68,7 @@ Static local web UI served by the local API server. It does not own data or cont
 - Tag search
 - Metadata search
 - Semantic search (sqlite-vec)
+- Theme-filtered search and compiled theme context
 
 ## Lifecycle
 
@@ -87,6 +91,8 @@ Update / Archive / Delete / Restore
 ## Context Resolution
 
 ```text
+Theme Compilations
+      +
 Project Memory
       +
 Search Results
@@ -115,8 +121,9 @@ user or agent applies one explicitly.
 
 Distilled memories preserve evidence with `source_ids`. Knowledge Graph
 relations preserve evidence with `evidence_ids`. This keeps every synthetic
-memory and generated relation inspectable.
+pam and generated relation inspectable.
 
-Hook events are observations. In assisted mode, a meaningful session-end hook can
-create a proposed `session` memory, but raw prompt transcripts are not stored as
-durable memory.
+Hook events are observations. In auto and assisted mode, textual prompt hooks
+also create redacted Markdown `exchange` memories with simplified and raw
+sections. A meaningful session-end hook can create a `session` memory according
+to capture mode.

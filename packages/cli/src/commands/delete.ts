@@ -1,5 +1,5 @@
 import { Command } from 'commander'
-import { backupMemory, deleteMemory, getProjectMemoryPath } from 'pamh-core'
+import { backupMemory, deleteMemory, getProjectMemoryPath } from '@supersekai64/pam-core'
 
 export function registerDeleteCommand(program: Command) {
   program

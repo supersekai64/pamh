@@ -174,26 +174,26 @@ function getDebugLogPath(basePath: string, config?: MemoryDebugConfig | null): s
 }
 
 function isEnvDebugEnabled(): boolean {
-  return ['1', 'true', 'yes', 'on'].includes((process.env.PAMH_DEBUG ?? '').toLowerCase())
+  return ['1', 'true', 'yes', 'on'].includes((process.env.PAM_DEBUG ?? '').toLowerCase())
 }
 
 function getRuntimeContext(config: MemoryDebugConfig | null, event: MemoryDebugEvent) {
   const argv = process.argv.join(' ')
   return {
-    tool: event.tool ?? process.env.PAMH_TOOL ?? event.source ?? inferToolFromArgv(),
-    agent: event.agent ?? process.env.PAMH_AGENT ?? process.env.AI_AGENT ?? config?.agent,
+    tool: event.tool ?? process.env.PAM_TOOL ?? event.source ?? inferToolFromArgv(),
+    agent: event.agent ?? process.env.PAM_AGENT ?? process.env.AI_AGENT ?? config?.agent,
     model:
       event.model ??
-      process.env.PAMH_MODEL ??
+      process.env.PAM_MODEL ??
       process.env.OPENAI_MODEL ??
       process.env.ANTHROPIC_MODEL ??
       config?.model,
     session_id:
       event.session_id ??
-      process.env.PAMH_SESSION_ID ??
+      process.env.PAM_SESSION_ID ??
       process.env.CLAUDE_SESSION_ID ??
       config?.session_id,
-    project_path: event.project_path ?? process.env.PAMH_PROJECT_PATH ?? process.cwd(),
+    project_path: event.project_path ?? process.env.PAM_PROJECT_PATH ?? process.cwd(),
     pid: process.pid,
     command: argv,
   }

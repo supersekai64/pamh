@@ -2,7 +2,14 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { generateId } from './id.js'
-import { archiveMemory, createMemory, deleteMemory, listMemories, updateMemory } from './storage.js'
+import {
+  archiveMemory,
+  createMemory,
+  deleteMemory,
+  indexAllMemories,
+  listMemories,
+  updateMemory,
+} from './storage.js'
 import { recordMemoryDebugEvent, summarizeMemoryForDebug } from './memory-debug.js'
 import {
   extractConceptKeywords as extractKeywords,
@@ -130,6 +137,12 @@ export interface ApplyRecommendationOptions {
 }
 
 const RECOMMENDATIONS_FILE = 'recommendations.json'
+const CONTRADICTION_MEMORY_TYPES = new Set<MemoryType>([
+  'decision',
+  'knowledge',
+  'preference',
+  'rule',
+])
 const STACK_TERMS = new Set([
   'api',
   'codex',
@@ -173,7 +186,10 @@ export async function generateRecommendations(basePath: string): Promise<MemoryM
     .map((item) => ({ ...item, updated_at: item.updated_at ?? now }))
 
   const merged = [
-    ...validExisting.filter((item) => !newRecommendations.some((next) => next.id === item.id)),
+    ...validExisting.filter(
+      (item) =>
+        item.status !== 'proposed' && !newRecommendations.some((next) => next.id === item.id)
+    ),
     ...newRecommendations,
   ]
 
@@ -203,7 +219,7 @@ export async function generateRecommendations(basePath: string): Promise<MemoryM
       active_memories: activeMemories.length,
       proposed_recommendations: newRecommendations.filter((item) => item.status === 'proposed')
         .length,
-      source_preservation_rate: newRecommendations.length ? 1 : 0,
+      source_preservation_rate: 1,
       top_concept_count: getConceptBuckets(memories).length,
     },
   }
@@ -247,7 +263,7 @@ export async function applyRecommendation(
   } else if (recommendation.action === 'mark_noise' && targetId) {
     memory = await updateMemory(basePath, targetId, {
       status: 'noise',
-      tags: mergeTags(await getMemoryTags(basePath, targetId), ['pamh-noise']),
+      tags: mergeTags(await getMemoryTags(basePath, targetId), ['pam-noise']),
     })
   } else if (recommendation.action === 'restore' && targetId) {
     memory = await updateMemory(basePath, targetId, { status: 'active' })
@@ -318,7 +334,7 @@ export async function preferContradictionRecommendation(
   const archived = await updateMemory(basePath, archivedId, {
     status: 'archived',
     superseded_by: preferredId,
-    tags: mergeTags(await getMemoryTags(basePath, archivedId), ['pamh-contradiction-resolved']),
+    tags: mergeTags(await getMemoryTags(basePath, archivedId), ['pam-contradiction-resolved']),
   })
 
   const updated = await setRecommendationStatus(basePath, id, 'accepted')
@@ -365,7 +381,7 @@ export async function analyzeDistillation(basePath: string): Promise<Distillatio
 export async function applyDistillationProposal(
   basePath: string,
   proposal: DistillationProposal,
-  status: MemoryStatus = 'proposed'
+  status: MemoryStatus = 'active'
 ): Promise<Memory> {
   const sortedSourceIds = [...proposal.source_ids].sort()
   const fingerprint = sortedSourceIds.join('|')
@@ -381,19 +397,28 @@ export async function applyDistillationProposal(
   })
 
   if (existing) {
+    let returned = existing
+    if (status === 'active' && existing.metadata.status === 'proposed') {
+      returned =
+        (await updateMemory(basePath, existing.metadata.id, { status: 'active' })) ?? existing
+    }
+
     await recordMemoryDebugEvent(basePath, {
       action: 'distillation.apply',
       outcome: 'skipped',
       tool: 'intelligence',
-      memory_id: existing.metadata.id,
+      memory_id: returned.metadata.id,
       details: {
         proposal_id: proposal.id,
         concept: proposal.concept,
         source_ids: proposal.source_ids,
-        reason: 'already_distilled',
+        reason:
+          returned.metadata.status === existing.metadata.status
+            ? 'already_distilled'
+            : 'activated_existing_distillation',
       },
     })
-    return existing
+    return returned
   }
 
   const memory = await createMemory(basePath, {
@@ -485,8 +510,12 @@ export async function buildKnowledgeGraph(basePath: string): Promise<KnowledgeGr
     })
     addRelation(relations, typedEntity.id, memoryEntity.id, 'mentions', [memory.metadata.id])
 
-    for (const tag of memory.metadata.tags) {
-      const concept = normalizeConcept(tag)
+    const explicitConcepts = normalizeMemoryConcepts(memory)
+    const graphConcepts = explicitConcepts.length
+      ? explicitConcepts
+      : memory.metadata.tags.map((tag) => normalizeConcept(tag)).filter(Boolean)
+
+    for (const concept of graphConcepts) {
       if (!concept) continue
       const entity = addEntity(entities, {
         id: `concept:${concept}`,
@@ -507,7 +536,10 @@ export async function buildKnowledgeGraph(basePath: string): Promise<KnowledgeGr
       addRelation(relations, typedEntity.id, entity.id, 'applies_to', [memory.metadata.id])
     }
 
-    for (const stack of extractStacks(memory.content, memory.metadata.tags)) {
+    for (const stack of extractStacks(memory.content, [
+      ...memory.metadata.tags,
+      ...(memory.metadata.concepts ?? []),
+    ])) {
       const entity = addEntity(entities, {
         id: `stack:${stack}`,
         label: formatLabel(stack),
@@ -590,6 +622,11 @@ export async function seedIntelligenceEvaluationDataset(basePath: string): Promi
   created: number
   categories: Record<string, number>
 }> {
+  const previousAutoVectorize = process.env.PAM_AUTO_VECTORIZE
+  const previousThemeRebuild = process.env.PAM_DEFER_THEME_REBUILD
+  process.env.PAM_AUTO_VECTORIZE = '0'
+  process.env.PAM_DEFER_THEME_REBUILD = '1'
+
   const categories: Record<string, number> = {
     active: 0,
     near_duplicates: 0,
@@ -600,123 +637,129 @@ export async function seedIntelligenceEvaluationDataset(basePath: string): Promi
     graph_relations: 0,
   }
 
-  const recurring = [
-    'assisted capture',
-    'memory distillation',
-    'auto cleanup',
-    'AI recommendations',
-    'knowledge graph',
-    'source evidence',
-    'SQLite index',
-    'Markdown source of truth',
-    'MCP integration',
-    'review workflow',
-  ]
+  try {
+    const recurring = [
+      'automatic capture',
+      'memory distillation',
+      'auto cleanup',
+      'AI recommendations',
+      'knowledge graph',
+      'source evidence',
+      'SQLite index',
+      'Markdown source of truth',
+      'MCP integration',
+      'diagnostic workflow',
+    ]
 
-  for (let i = 0; i < 150; i += 1) {
-    const concept = recurring[i % recurring.length]
-    await createMemory(basePath, {
-      type: i % 5 === 0 ? 'decision' : i % 5 === 1 ? 'preference' : 'knowledge',
-      scope: 'project',
-      status: 'active',
-      source: 'evaluation-dataset',
-      tags: [slug(concept), 'eval-active'],
-      content: `Evaluation memory ${i + 1}: ${formatLabel(concept)} should remain concise, reviewable, and supported by source evidence for the PAMH project.`,
-      salience: 0.62,
+    for (let i = 0; i < 150; i += 1) {
+      const concept = recurring[i % recurring.length]
+      await createMemory(basePath, {
+        type: i % 5 === 0 ? 'decision' : i % 5 === 1 ? 'preference' : 'knowledge',
+        scope: 'project',
+        status: 'active',
+        source: 'evaluation-dataset',
+        tags: [slug(concept), 'eval-active'],
+        content: `Evaluation memory ${i + 1}: ${formatLabel(concept)} should remain concise, reviewable, and supported by source evidence for the PAM project.`,
+        salience: 0.62,
+      })
+      categories.active += 1
+    }
+
+    for (let i = 0; i < 30; i += 1) {
+      await createMemory(basePath, {
+        type: 'knowledge',
+        scope: 'project',
+        status: 'active',
+        source: 'evaluation-dataset',
+        tags: ['near-duplicate', 'assisted-mode'],
+        content: `Near duplicate ${i + 1}: Proposed memories must be reviewed before becoming active in assisted capture mode.`,
+      })
+      categories.near_duplicates += 1
+    }
+
+    for (let i = 0; i < 20; i += 1) {
+      await createMemory(basePath, {
+        type: 'decision',
+        scope: 'project',
+        status: i % 2 === 0 ? 'archived' : 'active',
+        source: 'evaluation-dataset',
+        tags: ['obsolete', 'superseded'],
+        content: `Obsolete decision ${i + 1}: Use manual-only pam capture for all agents. This is superseded by automatic capture as the default.`,
+      })
+      categories.obsolete += 1
+    }
+
+    for (let i = 0; i < 20; i += 1) {
+      await createMemory(basePath, {
+        type: 'session',
+        scope: 'project',
+        status: i % 3 === 0 ? 'noise' : 'proposed',
+        source: 'evaluation-dataset',
+        tags: ['pam-noise', 'generated-test-fragment'],
+        content: `tmp log ${i + 1}`,
+        salience: 0.08,
+      })
+      categories.noise += 1
+    }
+
+    for (let i = 0; i < 10; i += 1) {
+      await createMemory(basePath, {
+        type: 'decision',
+        scope: 'project',
+        status: 'active',
+        source: 'evaluation-dataset',
+        tags: ['contradiction', 'capture-mode'],
+        content:
+          i % 2 === 0
+            ? 'Capture mode should allow automatic pam capture by default.'
+            : 'Capture mode should deny automatic pam capture by default.',
+      })
+      categories.contradictions += 1
+    }
+
+    for (const concept of recurring) {
+      await createMemory(basePath, {
+        type: 'knowledge',
+        scope: 'project',
+        status: 'active',
+        source: 'evaluation-dataset',
+        tags: ['strong-concept', slug(concept)],
+        content: `${formatLabel(concept)} is a recurring concept that should become visible in distillation and recommendations.`,
+        salience: 0.78,
+      })
+      categories.recurring_concepts += 1
+    }
+
+    for (let i = 0; i < 30; i += 1) {
+      await createMemory(basePath, {
+        type: i % 2 === 0 ? 'rule' : 'decision',
+        scope: 'project',
+        status: 'active',
+        source: 'evaluation-dataset',
+        tags: ['graph-relation', i % 2 === 0 ? 'main-tsx' : 'openai-sdk'],
+        content:
+          i % 2 === 0
+            ? `UI rule ${i + 1} applies to packages/ui/src/main.tsx and should be inspectable in the Knowledge Graph.`
+            : `API decision ${i + 1} depends on the OpenAI SDK and uses MCP-compatible agents.`,
+      })
+      categories.graph_relations += 1
+    }
+
+    await indexAllMemories(basePath)
+    await recordMemoryDebugEvent(basePath, {
+      action: 'evaluation_dataset.seed',
+      outcome: 'ok',
+      tool: 'intelligence',
+      details: categories,
     })
-    categories.active += 1
-  }
 
-  for (let i = 0; i < 30; i += 1) {
-    await createMemory(basePath, {
-      type: 'knowledge',
-      scope: 'project',
-      status: 'active',
-      source: 'evaluation-dataset',
-      tags: ['near-duplicate', 'review-workflow'],
-      content: `Near duplicate ${i + 1}: Proposed memories must be reviewed before becoming active in assisted capture mode.`,
-    })
-    categories.near_duplicates += 1
-  }
-
-  for (let i = 0; i < 20; i += 1) {
-    await createMemory(basePath, {
-      type: 'decision',
-      scope: 'project',
-      status: i % 2 === 0 ? 'archived' : 'active',
-      source: 'evaluation-dataset',
-      tags: ['obsolete', 'superseded'],
-      content: `Obsolete decision ${i + 1}: Use manual-only memory capture for all agents. This is superseded by assisted capture as the default.`,
-    })
-    categories.obsolete += 1
-  }
-
-  for (let i = 0; i < 20; i += 1) {
-    await createMemory(basePath, {
-      type: 'session',
-      scope: 'project',
-      status: i % 3 === 0 ? 'noise' : 'proposed',
-      source: 'evaluation-dataset',
-      tags: ['pamh-noise', 'generated-test-fragment'],
-      content: `tmp log ${i + 1}`,
-      salience: 0.08,
-    })
-    categories.noise += 1
-  }
-
-  for (let i = 0; i < 10; i += 1) {
-    await createMemory(basePath, {
-      type: 'decision',
-      scope: 'project',
-      status: 'active',
-      source: 'evaluation-dataset',
-      tags: ['contradiction', 'capture-mode'],
-      content:
-        i % 2 === 0
-          ? 'Capture mode should be assisted by default.'
-          : 'Capture mode should be automatic by default without review.',
-    })
-    categories.contradictions += 1
-  }
-
-  for (const concept of recurring) {
-    await createMemory(basePath, {
-      type: 'knowledge',
-      scope: 'project',
-      status: 'active',
-      source: 'evaluation-dataset',
-      tags: ['strong-concept', slug(concept)],
-      content: `${formatLabel(concept)} is a recurring concept that should become visible in distillation and recommendations.`,
-      salience: 0.78,
-    })
-    categories.recurring_concepts += 1
-  }
-
-  for (let i = 0; i < 30; i += 1) {
-    await createMemory(basePath, {
-      type: i % 2 === 0 ? 'rule' : 'decision',
-      scope: 'project',
-      status: 'active',
-      source: 'evaluation-dataset',
-      tags: ['graph-relation', i % 2 === 0 ? 'main-tsx' : 'openai-sdk'],
-      content:
-        i % 2 === 0
-          ? `UI rule ${i + 1} applies to packages/ui/src/main.tsx and should be inspectable in the Knowledge Graph.`
-          : `API decision ${i + 1} depends on the OpenAI SDK and uses MCP-compatible agents.`,
-    })
-    categories.graph_relations += 1
-  }
-
-  await recordMemoryDebugEvent(basePath, {
-    action: 'evaluation_dataset.seed',
-    outcome: 'ok',
-    tool: 'intelligence',
-    details: categories,
-  })
-
-  return {
-    created: Object.values(categories).reduce((sum, count) => sum + count, 0),
-    categories,
+    return {
+      created: Object.values(categories).reduce((sum, count) => sum + count, 0),
+      categories,
+    }
+  } finally {
+    restoreEnvValue('PAM_AUTO_VECTORIZE', previousAutoVectorize)
+    restoreEnvValue('PAM_DEFER_THEME_REBUILD', previousThemeRebuild)
   }
 }
 
@@ -826,21 +869,24 @@ function getDistillationProposalsFromMemories(memories: Memory[]): DistillationP
 function getConceptBuckets(memories: Memory[]): Array<{ concept: string; memories: Memory[] }> {
   const visible = memories.filter(
     (memory) =>
-      ['active', 'proposed'].includes(memory.metadata.status) &&
-      !isNoise(memory) &&
-      memory.content.trim().length > 12
+      memory.metadata.status === 'active' && !isNoise(memory) && memory.content.trim().length > 12
   )
   const buckets = new Map<string, Memory[]>()
 
   for (const memory of visible) {
     const concepts = new Set<string>()
-    memory.metadata.tags.forEach((tag) => {
-      const concept = normalizeConcept(tag)
-      if (concept) concepts.add(concept)
-    })
-    extractKeywords(memory.content)
-      .slice(0, 6)
-      .forEach((keyword) => concepts.add(keyword))
+    const explicitConcepts = normalizeMemoryConcepts(memory)
+    if (explicitConcepts.length) {
+      explicitConcepts.forEach((concept) => concepts.add(concept))
+    } else {
+      memory.metadata.tags.forEach((tag) => {
+        const concept = normalizeConcept(tag)
+        if (concept) concepts.add(concept)
+      })
+      extractKeywords(memory.content)
+        .slice(0, 6)
+        .forEach((keyword) => concepts.add(keyword))
+    }
 
     for (const concept of concepts) {
       buckets.set(concept, [...(buckets.get(concept) ?? []), memory])
@@ -850,6 +896,12 @@ function getConceptBuckets(memories: Memory[]): Array<{ concept: string; memorie
   return [...buckets.entries()]
     .map(([concept, bucketMemories]) => ({ concept, memories: bucketMemories }))
     .sort((a, b) => b.memories.length - a.memories.length || a.concept.localeCompare(b.concept))
+}
+
+function normalizeMemoryConcepts(memory: Memory): string[] {
+  return (memory.metadata.concepts ?? [])
+    .map((concept) => normalizeConcept(concept))
+    .filter((concept): concept is string => Boolean(concept))
 }
 
 function buildDistillationProposal(concept: string, memories: Memory[]): DistillationProposal {
@@ -864,7 +916,7 @@ function buildDistillationProposal(concept: string, memories: Memory[]): Distill
     return `- ${memory.metadata.type}/${memory.metadata.scope} ${memory.metadata.id}: ${truncate(memory.content, 180)}`
   })
   const content = [
-    `${formatLabel(concept)} is a recurring PAMH project signal supported by ${memories.length} source memories.`,
+    `${formatLabel(concept)} is a recurring PAM project signal supported by ${memories.length} source memories.`,
     '',
     'Durable summary:',
     `- Keep ${formatLabel(concept)} concise, reviewable, and evidence-backed when it appears in LLM context.`,
@@ -883,7 +935,7 @@ function buildDistillationProposal(concept: string, memories: Memory[]): Distill
     source_ids: sourceIds,
     source_count: memories.length,
     compression_ratio: sourceChars ? Number((content.length / sourceChars).toFixed(3)) : 1,
-    reason: `${formatLabel(concept)} appears repeatedly and can be represented as one proposed synthetic memory while preserving source IDs.`,
+    reason: `${formatLabel(concept)} appears repeatedly and can be represented as one synthetic memory while preserving source IDs.`,
   }
 }
 
@@ -901,7 +953,7 @@ async function buildDistillationProposalForIds(
 
 function findObsoletePairs(memories: Memory[]): Array<[Memory, Memory]> {
   const candidates = memories
-    .filter((memory) => memory.metadata.type === 'decision' && memory.metadata.status !== 'deleted')
+    .filter((memory) => memory.metadata.type === 'decision' && isActionableMemory(memory))
     .sort((a, b) => a.metadata.created_at.localeCompare(b.metadata.created_at))
   const pairs: Array<[Memory, Memory]> = []
 
@@ -922,9 +974,7 @@ function findObsoletePairs(memories: Memory[]): Array<[Memory, Memory]> {
 }
 
 function findContradictionPairs(memories: Memory[]): Array<[Memory, Memory]> {
-  const candidates = memories.filter(
-    (memory) => memory.metadata.status !== 'deleted' && !isNoise(memory)
-  )
+  const candidates = memories.filter(isContradictionCandidate)
   const pairs: Array<[Memory, Memory]> = []
 
   for (let i = 0; i < candidates.length; i += 1) {
@@ -941,9 +991,8 @@ function findContradictionPairs(memories: Memory[]): Array<[Memory, Memory]> {
 }
 
 function isLowValue(memory: Memory): boolean {
-  if (isNoise(memory)) return false
+  if (!isActionableMemory(memory)) return false
   const content = memory.content.trim()
-  if (memory.metadata.status === 'deleted') return false
   if (content.length < 24) return true
   if (/^(tmp|test|foo|bar|lorem|debug log)\b/i.test(content)) return true
   return memory.metadata.tags.some((tag) =>
@@ -951,11 +1000,19 @@ function isLowValue(memory: Memory): boolean {
   )
 }
 
+function isActionableMemory(memory: Memory): boolean {
+  return ['active', 'proposed'].includes(memory.metadata.status) && !isNoise(memory)
+}
+
+function isContradictionCandidate(memory: Memory): boolean {
+  return isActionableMemory(memory) && CONTRADICTION_MEMORY_TYPES.has(memory.metadata.type)
+}
+
 function isNoise(memory: Memory): boolean {
   return (
     memory.metadata.status === 'noise' ||
     memory.metadata.tags.includes('noise') ||
-    memory.metadata.tags.includes('pamh-noise') ||
+    memory.metadata.tags.includes('pam-noise') ||
     memory.metadata.source === 'noise'
   )
 }
@@ -1183,6 +1240,14 @@ function uniqueBy<T>(items: T[], getKey: (item: T) => string): T[] {
     seen.add(key)
     return true
   })
+}
+
+function restoreEnvValue(key: string, value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env[key]
+    return
+  }
+  process.env[key] = value
 }
 
 function getStringArray(value: unknown): string[] {

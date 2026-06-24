@@ -30,7 +30,7 @@ export interface UpgradeStatePaths {
 }
 
 export function getUpgradeStatePaths(runId = 'latest'): UpgradeStatePaths {
-  const dir = process.env.PAMH_UPGRADE_STATE_DIR ?? join(tmpdir(), 'pamh-upgrade')
+  const dir = process.env.PAM_UPGRADE_STATE_DIR ?? join(tmpdir(), 'pam-upgrade')
   const suffix = runId === 'latest' ? 'latest' : sanitizeRunId(runId)
   return {
     dir,
@@ -58,10 +58,10 @@ export function appendUpgradeLog(logPath: string, message: string): void {
 }
 
 export function formatUpgradeStatus(status: UpgradeStatus | null): string {
-  if (!status) return 'No PAMH upgrade status has been recorded yet.'
+  if (!status) return 'No PAM upgrade status has been recorded yet.'
 
   const lines = [
-    `PAMH upgrade ${status.runId}`,
+    `PAM upgrade ${status.runId}`,
     `Phase: ${status.phase}`,
     `Package: ${status.packageSpec}`,
     `npm: ${status.npmCommand}`,

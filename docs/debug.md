@@ -1,24 +1,24 @@
 # Memory Debug Logging
 
-PAMH can write a plain-text debug log for memory activity in the current project.
+PAM can write a plain-text debug log for memory activity in the current project.
 
 Enable it:
 
 ```bash
-memory debug on --agent codex --model gpt-5
+pam debug on --agent codex --model gpt-5
 ```
 
 Show status and path:
 
 ```bash
-memory debug status
-memory debug path
+pam debug status
+pam debug path
 ```
 
 Disable it:
 
 ```bash
-memory debug off
+pam debug off
 ```
 
 The default project log is:
@@ -34,11 +34,11 @@ machine analysis.
 Environment variables can enrich logs without changing commands:
 
 ```bash
-PAMH_DEBUG=1
-PAMH_AGENT=codex
-PAMH_MODEL=gpt-5
-PAMH_SESSION_ID=my-session
-PAMH_TOOL=mcp
+PAM_DEBUG=1
+PAM_AGENT=codex
+PAM_MODEL=gpt-5
+PAM_SESSION_ID=my-session
+PAM_TOOL=mcp
 ```
 
 Logged events include memory create/read/update/delete/archive/restore/approve/reject/access,
@@ -47,17 +47,17 @@ list/search requests.
 
 ## Import/export mismatch
 
-If `memory ui` or another command fails with an ESM import error such as:
+If `pam ui` or another command fails with an ESM import error such as:
 
 ```text
-SyntaxError: The requested module 'pamh-core' does not provide an export named 'extractConceptCandidates'
+SyntaxError: The requested module '@supersekai64/pam-core' does not provide an export named 'extractConceptCandidates'
 ```
 
-the installed packages are out of sync. Upgrade the CLI so `pamh-cli`, `pamh-api`, and `pamh-core`
+the installed packages are out of sync. Upgrade the CLI so `@supersekai64/pam-cli`, `@supersekai64/pam-api`, and `@supersekai64/pam-core`
 resolve to compatible versions:
 
 ```bash
-npm install -g pamh-cli@latest
+npm install -g @supersekai64/pam-cli@latest
 ```
 
 For a workspace checkout, run `pnpm install && pnpm build && pnpm link:cli` after changing package

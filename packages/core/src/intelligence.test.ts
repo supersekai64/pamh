@@ -19,7 +19,7 @@ describe('intelligence layer', () => {
   let memoryPath: string
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'pamh-intelligence-test-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'pam-intelligence-test-'))
     memoryPath = await initProjectMemory(tempDir)
   })
 
@@ -27,27 +27,27 @@ describe('intelligence layer', () => {
     await rm(tempDir, { recursive: true, force: true })
   })
 
-  it('creates distilled proposed memories with preserved source ids', async () => {
+  it('creates active distilled memories with preserved source ids', async () => {
     const first = await createMemory(memoryPath, {
       type: 'preference',
       scope: 'project',
       status: 'active',
       tags: ['ui-density'],
-      content: 'The UI should use dense operational layouts for repeated review workflows.',
+      content: 'The UI should use dense operational layouts for repeated evidence workflows.',
     })
     const second = await createMemory(memoryPath, {
       type: 'preference',
       scope: 'project',
       status: 'active',
       tags: ['ui-density'],
-      content: 'Dense operational UI helps memory review stay fast and scannable.',
+      content: 'Dense operational UI helps pam review stay fast and scannable.',
     })
     const third = await createMemory(memoryPath, {
       type: 'preference',
       scope: 'project',
       status: 'active',
       tags: ['ui-density'],
-      content: 'Memory governance screens should remain compact and easy to scan.',
+      content: 'Memory maintenance screens should remain compact and easy to scan.',
     })
 
     const proposals = await analyzeDistillation(memoryPath)
@@ -57,20 +57,45 @@ describe('intelligence layer', () => {
     const distilled = await applyDistillationProposal(memoryPath, proposal!)
     const reloaded = await readMemory(memoryPath, distilled.metadata.id)
 
-    expect(reloaded?.metadata.status).toBe('proposed')
+    expect(reloaded?.metadata.status).toBe('active')
     expect(reloaded?.metadata.source).toBe('distillation')
     expect(reloaded?.metadata.source_ids?.sort()).toEqual(
       [first.metadata.id, second.metadata.id, third.metadata.id].sort()
     )
   })
 
+  it('activates an existing proposed distillation when auto apply sees the same sources', async () => {
+    const sourceIds: string[] = []
+    for (let index = 0; index < 3; index += 1) {
+      const memory = await createMemory(memoryPath, {
+        type: 'knowledge',
+        scope: 'project',
+        status: 'active',
+        tags: ['legacy-distillation'],
+        content: `Legacy distillation source ${index + 1} should consolidate automatically.`,
+      })
+      sourceIds.push(memory.metadata.id)
+    }
+
+    const proposal = (await analyzeDistillation(memoryPath)).find((item) =>
+      sourceIds.every((id) => item.source_ids.includes(id))
+    )
+    expect(proposal).toBeDefined()
+
+    const proposed = await applyDistillationProposal(memoryPath, proposal!, 'proposed')
+    const activated = await applyDistillationProposal(memoryPath, proposal!)
+
+    expect(activated.metadata.id).toBe(proposed.metadata.id)
+    expect(activated.metadata.status).toBe('active')
+  })
+
   it('does not propose distillation for French stopword pseudo-concepts', async () => {
     const contents = [
       'La sauvegarde localStorage est supprimée quand la grille est terminée.',
-      'Le serveur de développement Sudoku est lancé avec PAMH installé.',
-      'Le stockage PAMH du projet est dans le dossier local avec la configuration.',
+      'Le serveur de développement Sudoku est lancé avec PAM installé.',
+      'Le stockage PAM du projet est dans le dossier local avec la configuration.',
       'Le projet est situé dans Documents avec une mémoire initialisée.',
-      'Vérifier avec PAMH que la mémoire durable est proposée dans le projet.',
+      'Vérifier avec PAM que la mémoire durable est proposée dans le projet.',
     ]
 
     for (const content of contents) {
@@ -159,7 +184,7 @@ describe('intelligence layer', () => {
       status: 'active',
       tags: ['import', 'distilled'],
       source_ids: [source.metadata.id],
-      content: 'Import is a recurring PAMH project signal supported by source memories.',
+      content: 'Import is a recurring PAM project signal supported by source memories.',
     })
 
     const graph = await buildKnowledgeGraph(memoryPath)
@@ -172,7 +197,7 @@ describe('intelligence layer', () => {
 
     expect(sourceEntity?.label).toBe('Import collision policy')
     expect(distilledEntity?.label).toBe(
-      'Import is a recurring PAMH project signal supported by source memories.'
+      'Import is a recurring PAM project signal supported by source memories'
     )
     expect(sourceEntity?.label).not.toBe(source.metadata.id)
     expect(distilledEntity?.label).not.toBe(distilled.metadata.id)
@@ -184,14 +209,14 @@ describe('intelligence layer', () => {
       scope: 'project',
       status: 'active',
       tags: ['capture-mode'],
-      content: 'Capture mode should allow automatic memory capture for project decisions.',
+      content: 'Capture mode should allow automatic pam capture for project decisions.',
     })
     const right = await createMemory(memoryPath, {
       type: 'decision',
       scope: 'project',
       status: 'active',
       tags: ['capture-mode'],
-      content: 'Capture mode should deny automatic memory capture for project decisions.',
+      content: 'Capture mode should deny automatic pam capture for project decisions.',
     })
 
     const report = await generateRecommendations(memoryPath)
@@ -216,7 +241,105 @@ describe('intelligence layer', () => {
     expect(preferred?.metadata.status).toBe('active')
     expect(archived?.metadata.status).toBe('archived')
     expect(archived?.metadata.superseded_by).toBe(right.metadata.id)
-    expect(archived?.metadata.tags).toContain('pamh-contradiction-resolved')
+    expect(archived?.metadata.tags).toContain('pam-contradiction-resolved')
+  })
+
+  it('ignores archived memories when building actionable contradiction signals', async () => {
+    const archived = await createMemory(memoryPath, {
+      type: 'decision',
+      scope: 'project',
+      status: 'archived',
+      tags: ['capture-mode'],
+      content: 'Capture mode should allow automatic pam capture for project decisions.',
+    })
+    const active = await createMemory(memoryPath, {
+      type: 'decision',
+      scope: 'project',
+      status: 'active',
+      tags: ['capture-mode'],
+      content: 'Capture mode should deny automatic pam capture for project decisions.',
+    })
+
+    const report = await generateRecommendations(memoryPath)
+    expect(
+      report.recommendations.some(
+        (item) =>
+          item.type === 'contradiction' &&
+          item.evidence_ids.includes(archived.metadata.id) &&
+          item.evidence_ids.includes(active.metadata.id)
+      )
+    ).toBe(false)
+
+    const graph = await buildKnowledgeGraph(memoryPath)
+    expect(
+      graph.relations.some(
+        (relation) =>
+          relation.type === 'contradicts' &&
+          relation.evidence_ids.includes(archived.metadata.id) &&
+          relation.evidence_ids.includes(active.metadata.id)
+      )
+    ).toBe(false)
+  })
+
+  it('does not treat session summaries as contradiction guidance', async () => {
+    const decision = await createMemory(memoryPath, {
+      type: 'decision',
+      scope: 'project',
+      status: 'proposed',
+      tags: ['knowledge-graph'],
+      content: 'Knowledge Graph should default to active evidence and expose full history.',
+    })
+    const session = await createMemory(memoryPath, {
+      type: 'session',
+      scope: 'project',
+      status: 'proposed',
+      tags: ['knowledge-graph'],
+      content:
+        'Implemented active evidence and full history modes while filtering archived and deleted memories from active cleanup.',
+    })
+
+    const report = await generateRecommendations(memoryPath)
+    expect(
+      report.recommendations.some(
+        (item) =>
+          item.type === 'contradiction' &&
+          item.evidence_ids.includes(decision.metadata.id) &&
+          item.evidence_ids.includes(session.metadata.id)
+      )
+    ).toBe(false)
+
+    const graph = await buildKnowledgeGraph(memoryPath)
+    expect(
+      graph.relations.some(
+        (relation) =>
+          relation.type === 'contradicts' &&
+          relation.evidence_ids.includes(decision.metadata.id) &&
+          relation.evidence_ids.includes(session.metadata.id)
+      )
+    ).toBe(false)
+  })
+
+  it('does not distill concepts that only exist in proposed memories', async () => {
+    for (let index = 0; index < 5; index += 1) {
+      await createMemory(memoryPath, {
+        type: 'knowledge',
+        scope: 'project',
+        status: 'proposed',
+        tags: ['checkpoint-only'],
+        content: `Checkpoint-only proposed memory ${index + 1} should wait for review.`,
+      })
+    }
+
+    const report = await generateRecommendations(memoryPath)
+
+    expect(
+      report.recommendations.some(
+        (item) =>
+          (item.type === 'distill_candidates' || item.type === 'strong_concept') &&
+          item.payload?.concept === 'Checkpoint-Only'
+      )
+    ).toBe(false)
+    expect(report.metrics.source_preservation_rate).toBe(1)
   })
 
   it('seeds the shared evaluation dataset', async () => {
@@ -226,5 +349,5 @@ describe('intelligence layer', () => {
     expect(result.categories.near_duplicates).toBe(30)
     expect(result.categories.graph_relations).toBe(30)
     expect(result.created).toBe(270)
-  })
+  }, 15000)
 })

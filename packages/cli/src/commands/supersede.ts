@@ -6,7 +6,7 @@ import {
   getProjectMemoryPath,
   assertMemoryType,
   assertSalience,
-} from 'pamh-core'
+} from '@supersekai64/pam-core'
 
 export function registerSupersedeCommand(program: Command) {
   const supersede = program.command('supersede').description('Memory supersession management')
@@ -51,7 +51,7 @@ export function registerSupersedeCommand(program: Command) {
       }
 
       console.log(`Superseded ${oldId} with ${result.newMemory.metadata.id}`)
-      console.log(`\nOld memory archived: ${result.oldMemory.metadata.id}`)
+      console.log(`\nOld pam archived: ${result.oldMemory.metadata.id}`)
       console.log(`New memory created: ${result.newMemory.metadata.id}`)
     })
 

@@ -1,17 +1,17 @@
 {
-  "name": "pamh-api",
-  "version": "0.1.14",
-  "description": "PAMH API - Local HTTP API for PAMH clients",
+  "name": "@supersekai64/pam-api",
+  "version": "0.1.15",
+  "description": "PAM API - Local HTTP API for PAM clients",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/supersekai64/pamh.git",
+    "url": "git+https://github.com/supersekai64/pam.git",
     "directory": "packages/api"
   },
-  "homepage": "https://github.com/supersekai64/pamh#readme",
+  "homepage": "https://github.com/supersekai64/pam#readme",
   "bugs": {
-    "url": "https://github.com/supersekai64/pamh/issues"
+    "url": "https://github.com/supersekai64/pam/issues"
   },
   "keywords": [
     "ai",
@@ -42,7 +42,7 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "pamh-core": "workspace:^",
-    "pamh-ui": "workspace:^"
+    "@supersekai64/pam-core": "workspace:^",
+    "@supersekai64/pam-ui": "workspace:^"
   }
 }

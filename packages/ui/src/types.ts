@@ -1,35 +1,39 @@
-import type { Vector3 } from 'three'
-
 export type Store = 'project'
-export type WorkspaceView =
-  | 'dashboard'
-  | 'map'
-  | 'evidence'
-  | 'context'
-  | 'governance'
+
+export type MemoryType =
+  | 'decision'
   | 'knowledge'
-export type MapLayout = '2d' | '3d'
-export type ConceptDepth = 'top' | 'expanded'
-export type MemoryAction =
-  | 'archive'
-  | 'restore'
-  | 'delete'
-  | 'physical-delete'
-  | 'approve'
-  | 'reject'
-  | 'mark-noise'
+  | 'mistake'
+  | 'rule'
+  | 'preference'
+  | 'session'
+  | 'exchange'
+  | 'task'
+  | 'client'
+  | 'pattern'
+
+export type MemoryStatus = 'active' | 'deleted' | 'archived' | 'proposed' | 'noise'
+export type MemoryStatusFilter = MemoryStatus | 'all'
+export type AutoCaptureMode = 'auto' | 'assisted' | 'manual'
 
 export interface MemoryMetadata {
   id: string
   title?: string
-  type: string
+  type: MemoryType
   scope: string
-  status: string
+  status: MemoryStatus
+  theme?: string
   created_at: string
   updated_at: string
   tags: string[]
+  concepts?: string[]
   source: string
+  supersedes?: string
+  superseded_by?: string
+  source_ids?: string[]
   salience?: number
+  access_count?: number
+  last_accessed_at?: string
 }
 
 export interface Memory {
@@ -93,6 +97,8 @@ export interface ContextSource extends ApiConceptSample {
 export interface ContextExclusion {
   id: string
   type: string
+  status: string
+  updated_at: string
   reason: string
 }
 
@@ -133,41 +139,11 @@ export interface ContextPreview {
   content: string
   tokenEstimate: number
   memoryCount: number
+  activeMemoryCount: number
   sources: ContextSource[]
   topConcepts: Array<{ title: string; occurrences: number; score: number }>
   generatedAt: string
   exclusions: ContextExclusion[]
-}
-
-export interface MemoryRecommendation {
-  id: string
-  type: string
-  status: string
-  title: string
-  explanation: string
-  evidence_ids: string[]
-  action?: string
-  payload?: {
-    source_ids?: string[]
-    target_id?: string
-    replacement_id?: string
-    left_id?: string
-    right_id?: string
-    concept?: string
-    count?: number
-    compression_ratio?: number
-  }
-}
-
-export interface RecommendationsResponse {
-  recommendations: MemoryRecommendation[]
-  metrics: {
-    total_memories: number
-    active_memories: number
-    proposed_recommendations: number
-    source_preservation_rate: number
-    top_concept_count: number
-  }
 }
 
 export interface KnowledgeEntity {
@@ -196,28 +172,68 @@ export interface KnowledgeGraphResponse {
   }
 }
 
-export interface GraphDatum {
-  id: string
-  title: string
-  category: 'tag' | 'keyword'
-  color: number
-  radius: number
-  position: Vector3
-  searchTerm: string
-  score: number
-  occurrences: number
-  labelVisible: boolean
-  detailHtml: string
+export interface IndexDiagnosticsResponse {
+  database: {
+    sizeBytes: number
+    files: Array<{ name: string; sizeBytes: number }>
+  }
+  sqlite: {
+    memoryRows: number
+    tagRows: number
+    chunkRows: number
+    ftsRows: number
+    latestMemoryUpdatedAt: string | null
+  }
+  markdown: {
+    memoryFiles: number
+  }
+  vectors: {
+    candidates: number
+    indexed: number
+    missing: number
+    coverage: number
+    latestUpdatedAt: string | null
+  }
+  health: {
+    status: 'ok' | 'needs-sync' | 'unknown'
+    missingInIndex: number
+    orphanedInIndex: number
+    missingVectors: number
+  }
 }
 
-export interface GraphEdge {
-  source: string
-  target: string
-  weight: number
+export interface PamConfigResponse {
+  project: {
+    name: string
+    path: string
+    memoryPath: string
+  }
+  autoCapture: {
+    mode: AutoCaptureMode
+  }
+  noise: {
+    ignoredConcepts: string[]
+  }
+  runtime: {
+    autoVectorize: boolean
+    deferThemeRebuild: boolean
+    debug: boolean
+  }
 }
 
-export interface ConceptGraph {
-  nodes: GraphDatum[]
-  edges: GraphEdge[]
-  maxEdgeWeight: number
+export type PackageVersionStatus = 'up-to-date' | 'update-available' | 'ahead' | 'unknown'
+
+export interface PackageBuildVersion {
+  name: string
+  label: string
+  currentVersion: string | null
+  latestVersion: string | null
+  status: PackageVersionStatus
+  error?: string
+}
+
+export interface PackageVersionsResponse {
+  packages: PackageBuildVersion[]
+  checkedAt: string
+  updateCount: number
 }

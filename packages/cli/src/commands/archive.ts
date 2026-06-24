@@ -1,5 +1,5 @@
 import { Command } from 'commander'
-import { archiveMemory, getProjectMemoryPath } from 'pamh-core'
+import { archiveMemory, getProjectMemoryPath } from '@supersekai64/pam-core'
 
 export function registerArchiveCommand(program: Command) {
   program

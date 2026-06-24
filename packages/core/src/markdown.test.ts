@@ -10,11 +10,14 @@ title: Database architecture
 type: decision
 scope: global
 status: active
+theme: decision
 created_at: '2026-01-01T00:00:00.000Z'
 updated_at: '2026-01-01T00:00:00.000Z'
 tags:
   - architecture
   - backend
+concepts:
+  - UI
 source: manual
 ---
 
@@ -27,7 +30,9 @@ This is the memory content.`
     expect(memory.metadata.type).toBe('decision')
     expect(memory.metadata.scope).toBe('project')
     expect(memory.metadata.status).toBe('active')
+    expect(memory.metadata.theme).toBe('decision')
     expect(memory.metadata.tags).toEqual(['architecture', 'backend'])
+    expect(memory.metadata.concepts).toEqual(['ui'])
     expect(memory.metadata.source).toBe('manual')
     expect(memory.content).toBe('This is the memory content.')
   })
@@ -130,6 +135,7 @@ describe('serializeMarkdown', () => {
         type: 'knowledge',
         scope: 'project',
         status: 'active',
+        theme: 'decision',
         created_at: '2026-01-01T00:00:00.000Z',
         updated_at: '2026-01-01T00:00:00.000Z',
         tags: ['test'],
@@ -154,9 +160,11 @@ describe('serializeMarkdown', () => {
         type: 'decision',
         scope: 'project',
         status: 'active',
+        theme: 'decision',
         created_at: '2026-01-01T00:00:00.000Z',
         updated_at: '2026-01-01T00:00:00.000Z',
         tags: ['round', 'trip'],
+        concepts: ['UI', 'Settings Button'],
         source: 'manual',
         supersedes: 'mem_old',
         superseded_by: 'mem_new',
@@ -173,7 +181,9 @@ describe('serializeMarkdown', () => {
     expect(parsed.metadata.id).toBe(original.metadata.id)
     expect(parsed.metadata.title).toBe(original.metadata.title)
     expect(parsed.metadata.type).toBe(original.metadata.type)
+    expect(parsed.metadata.theme).toBe(original.metadata.theme)
     expect(parsed.metadata.tags).toEqual(original.metadata.tags)
+    expect(parsed.metadata.concepts).toEqual(['ui', 'setting button'])
     expect(parsed.metadata.supersedes).toBe(original.metadata.supersedes)
     expect(parsed.metadata.superseded_by).toBe(original.metadata.superseded_by)
     expect(parsed.metadata.salience).toBe(original.metadata.salience)

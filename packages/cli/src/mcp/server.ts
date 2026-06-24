@@ -1,1 +1,5 @@
-export { createPamhMcpServer, startPamhMcpServer, type McpToolContext } from 'pamh-protocol'
+export {
+  createPamMcpServer,
+  startPamMcpServer,
+  type McpToolContext,
+} from '@supersekai64/pam-protocol'

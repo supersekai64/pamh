@@ -14,7 +14,7 @@ describe('import', () => {
   let basePath: string
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'pamh-import-test-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'pam-import-test-'))
     basePath = await initProjectMemory(tempDir)
   })
 
@@ -235,13 +235,13 @@ Markdown memory content
   })
 
   it('should skip JSON memories with unsafe IDs without writing outside the store', async () => {
-    const outsidePath = join(tempDir, 'outside_pamh_escape.md')
+    const outsidePath = join(tempDir, 'outside_PAM_escape.md')
     const jsonData = {
       version: '1.0.0',
       memories: [
         {
           metadata: {
-            id: '../../outside_pamh_escape',
+            id: '../../outside_PAM_escape',
             type: 'knowledge',
             scope: 'project',
             status: 'active',

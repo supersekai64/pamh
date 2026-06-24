@@ -1,5 +1,5 @@
 import { Command } from 'commander'
-import { readMemory, getProjectMemoryPath } from 'pamh-core'
+import { readMemory, getProjectMemoryPath } from '@supersekai64/pam-core'
 
 export function registerShowCommand(program: Command) {
   program

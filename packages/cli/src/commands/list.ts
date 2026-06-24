@@ -1,5 +1,5 @@
 import { Command } from 'commander'
-import { listMemories, getProjectMemoryPath } from 'pamh-core'
+import { listMemories, getProjectMemoryPath } from '@supersekai64/pam-core'
 
 export function registerListCommand(program: Command) {
   program

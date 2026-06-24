@@ -1,7 +1,7 @@
 {
   "mcpServers": {
-    "pamh": {
-      "command": "memory",
+    "pam": {
+      "command": "pam",
       "args": [
         "server",
         "start"

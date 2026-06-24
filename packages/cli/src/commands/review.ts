@@ -1,5 +1,5 @@
 import { Command } from 'commander'
-import { getProjectMemoryPath, listMemories } from 'pamh-core'
+import { getProjectMemoryPath, listMemories } from '@supersekai64/pam-core'
 
 export function registerReviewCommand(program: Command) {
   program
@@ -24,6 +24,6 @@ export function registerReviewCommand(program: Command) {
         const preview = memory.content.replace(/\s+/g, ' ').slice(0, 120)
         console.log(`${memory.metadata.id} | ${memory.metadata.type} | ${preview}...`)
       }
-      console.log('\nApprove with `memory approve <id>` or open `memory ui`.')
+      console.log('\nApprove with `pam approve <id>` or open `pam ui`.')
     })
 }

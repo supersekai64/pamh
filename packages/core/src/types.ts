@@ -5,6 +5,7 @@ export const MEMORY_TYPES = [
   'rule',
   'preference',
   'session',
+  'exchange',
   'task',
   'client',
   'pattern',
@@ -68,7 +69,7 @@ export function assertMemoryScope(value: unknown): MemoryScope {
 
 export function assertMemoryStatus(value: unknown): MemoryStatus {
   if (!isMemoryStatus(value)) {
-    throw new Error(`Invalid memory status: ${String(value)}`)
+    throw new Error(`Invalid pam status: ${String(value)}`)
   }
   return value
 }
@@ -95,9 +96,11 @@ export interface MemoryMetadata {
   type: MemoryType
   scope: MemoryScope
   status: MemoryStatus
+  theme?: string
   created_at: string
   updated_at: string
   tags: string[]
+  concepts?: string[]
   source: string
   // Supersession chain (conflict management)
   supersedes?: string // ID of the memory this one replaces
@@ -121,8 +124,10 @@ export interface CreateMemoryInput {
   content: string
   title?: string
   tags?: string[]
+  concepts?: string[]
   source?: string
   status?: MemoryStatus
+  theme?: string
   salience?: number // Base importance score (0-1, default: 0.5)
   supersedes?: string // ID of the memory this one replaces
   source_ids?: string[] // IDs of memories used as evidence
@@ -132,9 +137,11 @@ export interface UpdateMemoryInput {
   content?: string
   title?: string
   tags?: string[]
+  concepts?: string[]
   type?: MemoryType
   scope?: MemoryScope
   status?: MemoryStatus
+  theme?: string
   source_ids?: string[]
   superseded_by?: string
 }

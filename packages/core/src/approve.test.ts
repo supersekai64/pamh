@@ -10,7 +10,7 @@ describe('approve', () => {
   let basePath: string
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'pamh-approve-test-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'pam-approve-test-'))
     basePath = await initProjectMemory(tempDir)
   })
 

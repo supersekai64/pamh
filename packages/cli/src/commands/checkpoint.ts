@@ -1,6 +1,6 @@
 import { Command } from 'commander'
 
-import { memoryCheckpoint } from 'pamh-protocol'
+import { memoryCheckpoint } from '@supersekai64/pam-protocol'
 
 function collect(value: string, previous: string[] = []) {
   return [...previous, value]
@@ -26,6 +26,12 @@ export function registerCheckpointCommand(program: Command) {
       []
     )
     .option('--task <task>', 'Follow-up task (repeatable)', collect, [])
+    .option(
+      '--concept <concept>',
+      'Broad canonical concept for this checkpoint (repeatable)',
+      collect,
+      []
+    )
     .option('--agent <agent>', 'Agent name to tag checkpoint memories')
     .option('--model <model>', 'Model name to tag checkpoint memories')
     .option('--session-id <session_id>', 'Session identifier for hook/audit records')
@@ -39,6 +45,7 @@ export function registerCheckpointCommand(program: Command) {
           preferences: options.preference,
           mistakes: options.mistake,
           tasks: options.task,
+          concepts: options.concept,
           agent: options.agent,
           model: options.model,
           session_id: options.sessionId,

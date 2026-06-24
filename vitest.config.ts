@@ -4,8 +4,8 @@ import { fileURLToPath } from 'node:url'
 export default defineConfig({
   resolve: {
     alias: {
-      'pamh-core': fileURLToPath(new URL('./packages/core/src/index.ts', import.meta.url)),
-      'pamh-protocol': fileURLToPath(new URL('./packages/mcp/src/index.ts', import.meta.url)),
+      'pam-core': fileURLToPath(new URL('./packages/core/src/index.ts', import.meta.url)),
+      'pam-protocol': fileURLToPath(new URL('./packages/mcp/src/index.ts', import.meta.url)),
     },
   },
   test: {

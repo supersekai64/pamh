@@ -6,6 +6,8 @@ import {
   normalizeStoredMemoryScope,
   normalizeStoredMemoryType,
 } from './types.js'
+import { normalizeConceptList } from './concepts.js'
+import { inferMemoryTheme, normalizeMemoryTheme } from './themes.js'
 
 export function parseMarkdown(raw: string): Memory {
   const { data, content } = matter(raw)
@@ -16,9 +18,20 @@ export function parseMarkdown(raw: string): Memory {
     type: normalizeStoredMemoryType(data.type ?? 'knowledge'),
     scope: normalizeStoredMemoryScope(data.scope),
     status: assertMemoryStatus(data.status ?? 'active'),
+    theme:
+      normalizeMemoryTheme(data.theme) ??
+      inferMemoryTheme({
+        type: normalizeStoredMemoryType(data.type ?? 'knowledge'),
+        content,
+        tags: Array.isArray(data.tags) ? data.tags : [],
+        source: data.source,
+      }),
     created_at: data.created_at ?? new Date().toISOString(),
     updated_at: data.updated_at ?? new Date().toISOString(),
     tags: Array.isArray(data.tags) ? data.tags : [],
+    concepts: normalizeConceptList(
+      Array.isArray(data.concepts) ? data.concepts.map((item) => String(item)) : undefined
+    ),
     source: data.source ?? 'manual',
     supersedes: data.supersedes ? String(data.supersedes) : undefined,
     superseded_by: data.superseded_by ? String(data.superseded_by) : undefined,
@@ -46,9 +59,11 @@ export function serializeMarkdown(memory: Memory): string {
     type: memory.metadata.type,
     scope: memory.metadata.scope,
     status: memory.metadata.status,
+    theme: memory.metadata.theme,
     created_at: memory.metadata.created_at,
     updated_at: memory.metadata.updated_at,
     tags: memory.metadata.tags,
+    concepts: memory.metadata.concepts,
     source: memory.metadata.source,
     supersedes: memory.metadata.supersedes,
     superseded_by: memory.metadata.superseded_by,

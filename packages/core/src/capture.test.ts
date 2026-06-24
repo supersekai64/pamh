@@ -11,7 +11,7 @@ describe('intelligent capture', () => {
   let basePath: string
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'pamh-capture-test-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'pam-capture-test-'))
     basePath = await initProjectMemory(tempDir)
   })
 
@@ -24,25 +24,25 @@ describe('intelligent capture', () => {
       type: 'preference',
       scope: 'project',
       status: 'proposed',
-      tags: ['governance', 'ui'],
-      content: 'Governance recommendations should be action-first for users.',
+      tags: ['diagnostics', 'ui'],
+      content: 'Maintenance recommendations should be action-first for users.',
     })
 
     const result = await createIntelligentMemory(basePath, {
       type: 'preference',
       scope: 'project',
       status: 'proposed',
-      tags: ['governance', 'ui'],
-      content: 'Governance recommendations should explain safety before technical details.',
+      tags: ['diagnostics', 'ui'],
+      content: 'Maintenance recommendations should explain safety before technical details.',
     })
 
     expect(result.action).toBe('merged_proposed')
     expect(result.memory.metadata.id).toBe(existing.metadata.id)
     expect(result.memory.content).toContain(
-      'Governance recommendations should be action-first for users.'
+      'Maintenance recommendations should be action-first for users.'
     )
     expect(result.memory.content).toContain(
-      'Governance recommendations should explain safety before technical details.'
+      'Maintenance recommendations should explain safety before technical details.'
     )
     expect(await listMemories(basePath)).toHaveLength(1)
   })
@@ -53,7 +53,7 @@ describe('intelligent capture', () => {
       scope: 'project',
       status: 'active',
       tags: ['capture', 'merge'],
-      content: 'PAMH capture should preserve evidence when merging related memories.',
+      content: 'PAM capture should preserve evidence when merging related memories.',
     })
 
     const result = await createIntelligentMemory(basePath, {
@@ -61,7 +61,7 @@ describe('intelligent capture', () => {
       scope: 'project',
       status: 'proposed',
       tags: ['capture', 'merge'],
-      content: 'PAMH capture should merge related memories while keeping evidence links.',
+      content: 'PAM capture should merge related memories while keeping evidence links.',
     })
 
     expect(result.action).toBe('proposed_supersession')
@@ -101,14 +101,14 @@ describe('intelligent capture', () => {
       scope: 'project',
       status: 'active',
       tags: ['capture', 'reuse'],
-      content: 'PAMH capture should preserve source evidence during reuse.',
+      content: 'PAM capture should preserve source evidence during reuse.',
     })
     const result = await createIntelligentMemory(basePath, {
       type: 'decision',
       scope: 'project',
       status: 'proposed',
       tags: ['capture', 'reuse'],
-      content: 'PAMH capture should preserve source evidence during intelligent reuse.',
+      content: 'PAM capture should preserve source evidence during intelligent reuse.',
     })
 
     expect(await approveMemory(basePath, result.memory.metadata.id)).toBe(true)
@@ -127,7 +127,7 @@ describe('intelligent capture', () => {
       status: 'active',
       title: 'Context reuse',
       tags: ['context', 'reuse'],
-      content: 'PAMH context reuse should prioritize durable memories.',
+      content: 'PAM context reuse should prioritize durable memories.',
     })
 
     const result = await createIntelligentMemory(
@@ -137,7 +137,7 @@ describe('intelligent capture', () => {
         scope: 'project',
         status: 'active',
         tags: ['context', 'reuse'],
-        content: 'PAMH context reuse should prioritize durable memories and merged knowledge.',
+        content: 'PAM context reuse should prioritize durable memories and merged knowledge.',
       },
       { autoSupersedeActive: true }
     )
@@ -155,12 +155,12 @@ describe('intelligent capture', () => {
     expect(
       splitMemorySignals(
         [
-          '- Governance recommendations should be action-first.',
+          '- Maintenance recommendations should be action-first.',
           '- Capture should merge same-theme memories automatically.',
         ].join('\n')
       )
     ).toEqual([
-      'Governance recommendations should be action-first.',
+      'Maintenance recommendations should be action-first.',
       'Capture should merge same-theme memories automatically.',
     ])
   })

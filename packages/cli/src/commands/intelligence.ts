@@ -13,7 +13,7 @@ import {
   seedIntelligenceEvaluationDataset,
   type DistillationProposal,
   type MemoryRecommendation,
-} from 'pamh-core'
+} from '@supersekai64/pam-core'
 
 interface StoreOptions {
   project?: boolean
@@ -33,7 +33,7 @@ export function registerIntelligenceCommand(program: Command) {
       const report = await generateRecommendations(resolveBasePath(options))
       if (options.json) return printJson(report)
       printRecommendations(report.recommendations)
-      console.log(`\nTotal proposed: ${report.metrics.proposed_recommendations}`)
+      console.log(`\nOpen recommendations: ${report.metrics.proposed_recommendations}`)
     })
 
   intelligence
@@ -103,8 +103,8 @@ export function registerIntelligenceCommand(program: Command) {
 
   intelligence
     .command('distill')
-    .description('Preview distillation proposals, or create proposed memories with --apply')
-    .option('--apply', 'Create proposed distilled memories')
+    .description('Preview distillation proposals, or create distilled memories with --apply')
+    .option('--apply', 'Create distilled memories')
     .option('--json', 'Print JSON')
     .action(async (options: StoreOptions & { apply?: boolean }) => {
       const basePath = resolveBasePath(options)
@@ -115,7 +115,7 @@ export function registerIntelligenceCommand(program: Command) {
           created.push(await applyDistillationProposal(basePath, proposal))
         }
         if (options.json) return printJson({ proposals, created })
-        console.log(`Created ${created.length} proposed distilled memories`)
+        console.log(`Created ${created.length} distilled memories`)
         return
       }
       if (options.json) return printJson(proposals)

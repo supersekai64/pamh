@@ -8,7 +8,7 @@ import {
   findMemoryBase,
   getProjectMemoryPath,
   scanMemoryFileIssues,
-} from 'pamh-core'
+} from '@supersekai64/pam-core'
 
 export function registerDoctorCommand(program: Command) {
   const doctor = program.command('doctor').description('Diagnose memory system health')
@@ -99,16 +99,16 @@ export function registerDoctorCommand(program: Command) {
       const cwd = process.cwd()
       const memoryPath = findMemoryBase(cwd) ?? getProjectMemoryPath(cwd)
 
-      console.log('PAMH integration doctor\n')
-      reportCheck('CLI command', 'memory server start')
+      console.log('PAM integration doctor\n')
+      reportCheck('CLI command', 'pam server start')
       reportCheck('.ai-memory store', existsSync(memoryPath) ? memoryPath : 'missing')
 
       const checks = [
-        await checkTextFile(join(cwd, 'AGENTS.md'), ['PAMH Memory', 'memory search']),
-        await checkTextFile(join(cwd, 'CLAUDE.md'), ['PAMH Memory', 'memory search']),
-        await checkTextFile(join(cwd, '.github', 'copilot-instructions.md'), ['PAMH Memory']),
-        await checkTextFile(join(cwd, '.cursor', 'rules', 'pamh.mdc'), ['PAMH Memory']),
-        await checkJsonFile(join(cwd, '.claude', 'settings.json'), ['memory hook record']),
+        await checkTextFile(join(cwd, 'AGENTS.md'), ['PAM Memory', 'pam search']),
+        await checkTextFile(join(cwd, 'CLAUDE.md'), ['PAM Memory', 'pam search']),
+        await checkTextFile(join(cwd, '.github', 'copilot-instructions.md'), ['PAM Memory']),
+        await checkTextFile(join(cwd, '.cursor', 'rules', 'pam.mdc'), ['PAM Memory']),
+        await checkJsonFile(join(cwd, '.claude', 'settings.json'), ['pam hook record']),
         await checkJsonFile(join(cwd, '.mcp.json'), ['server', 'start']),
         await checkJsonFile(join(cwd, '.vscode', 'mcp.json'), ['server', 'start']),
         await checkJsonFile(join(cwd, '.cursor', 'mcp.json'), ['server', 'start']),
@@ -120,7 +120,7 @@ export function registerDoctorCommand(program: Command) {
 
       const failed = checks.filter((check) => !check.ok)
       if (failed.length > 0) {
-        console.log('\nRun `memory init` to regenerate missing or stale project integrations.')
+        console.log('\nRun `pam init` to regenerate missing or stale project integrations.')
         process.exitCode = 1
         return
       }

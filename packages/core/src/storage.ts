@@ -5,6 +5,11 @@ import { parseMarkdown, serializeMarkdown } from './markdown.js'
 import { assertMemoryId, generateId, isMemoryId } from './id.js'
 import { MemoryIndex, type SearchResult } from './indexer.js'
 import { recordMemoryDebugEvent, summarizeMemoryForDebug } from './memory-debug.js'
+import { initAutoCaptureConfig } from './auto-capture.js'
+import { autoIndexSemanticMemory, removeSemanticMemory } from './semantic.js'
+import { inferMemoryTheme } from './themes.js'
+import { normalizeConceptList } from './concepts.js'
+import { generateMemoryTitle } from './titles.js'
 import {
   assertMemoryScope,
   assertMemoryStatus,
@@ -44,6 +49,7 @@ export async function initProjectMemory(projectPath: string): Promise<string> {
 
   await mkdir(basePath, { recursive: true })
   await mkdir(join(basePath, 'sessions'), { recursive: true })
+  await mkdir(join(basePath, 'exchanges'), { recursive: true })
 
   const defaultFiles = [
     'project.md',
@@ -61,6 +67,8 @@ export async function initProjectMemory(projectPath: string): Promise<string> {
     }
   }
 
+  await initAutoCaptureConfig(basePath)
+
   return basePath
 }
 
@@ -75,13 +83,21 @@ export async function createMemory(basePath: string, input: CreateMemoryInput): 
   const memory: Memory = {
     metadata: {
       id,
-      title: normalizeTitle(input.title),
+      title: normalizeTitle(input.title) ?? generateMemoryTitle(input.content, id),
       type,
       scope,
       status,
+      theme: inferMemoryTheme({
+        type,
+        content: input.content,
+        tags: input.tags,
+        source: input.source,
+        theme: input.theme,
+      }),
       created_at: now,
       updated_at: now,
       tags: input.tags ?? [],
+      concepts: normalizeConceptList(input.concepts),
       source: input.source ?? 'manual',
       salience,
       access_count: 0,
@@ -96,7 +112,9 @@ export async function createMemory(basePath: string, input: CreateMemoryInput): 
 
   const index = new MemoryIndex(basePath)
   index.indexMemory(memory, filePath)
+  maybeRebuildThemeCompilations(index)
   index.close()
+  await tryAutoVectorizeMemory(basePath, memory)
 
   await recordMemoryDebugEvent(basePath, {
     action: 'memory.create',
@@ -175,6 +193,9 @@ export async function updateMemory(
   if (input.tags !== undefined) {
     memory.metadata.tags = input.tags
   }
+  if (input.concepts !== undefined) {
+    memory.metadata.concepts = normalizeConceptList(input.concepts)
+  }
   if (input.type !== undefined) {
     memory.metadata.type = assertMemoryType(input.type)
   }
@@ -185,6 +206,28 @@ export async function updateMemory(
   }
   if (input.status !== undefined) {
     memory.metadata.status = assertMemoryStatus(input.status)
+  }
+  if (input.theme !== undefined) {
+    memory.metadata.theme = inferMemoryTheme({
+      type: memory.metadata.type,
+      content: memory.content,
+      tags: memory.metadata.tags,
+      source: memory.metadata.source,
+      theme: input.theme,
+    })
+  } else if (
+    input.content !== undefined ||
+    input.tags !== undefined ||
+    input.type !== undefined ||
+    !memory.metadata.theme
+  ) {
+    memory.metadata.theme = inferMemoryTheme({
+      type: memory.metadata.type,
+      content: memory.content,
+      tags: memory.metadata.tags,
+      source: memory.metadata.source,
+      theme: memory.metadata.theme,
+    })
   }
   if (input.source_ids !== undefined) {
     memory.metadata.source_ids = input.source_ids
@@ -201,7 +244,9 @@ export async function updateMemory(
 
   const index = new MemoryIndex(basePath)
   index.indexMemory(memory, nextFilePath)
+  maybeRebuildThemeCompilations(index)
   index.close()
+  await tryAutoVectorizeMemory(basePath, memory)
 
   await recordMemoryDebugEvent(basePath, {
     action: 'memory.update',
@@ -260,7 +305,9 @@ export async function deleteMemory(
 
     const index = new MemoryIndex(basePath)
     index.removeMemory(id, 'physical deletion')
+    maybeRebuildThemeCompilations(index)
     index.close()
+    await tryRemoveVector(basePath, id)
 
     await recordMemoryDebugEvent(basePath, {
       action: 'memory.delete.physical',
@@ -285,7 +332,9 @@ export async function deleteMemory(
 
   const index = new MemoryIndex(basePath)
   index.indexMemory(memory, filePath)
+  maybeRebuildThemeCompilations(index)
   index.close()
+  await tryRemoveVector(basePath, id)
 
   await recordMemoryDebugEvent(basePath, {
     action: 'memory.delete',
@@ -348,7 +397,9 @@ export async function archiveMemory(basePath: string, id: string): Promise<boole
 
   const index = new MemoryIndex(basePath)
   index.indexMemory(memory, filePath)
+  maybeRebuildThemeCompilations(index)
   index.close()
+  await tryAutoVectorizeMemory(basePath, memory)
 
   await recordMemoryDebugEvent(basePath, {
     action: 'memory.archive',
@@ -409,6 +460,7 @@ function getSubdirForType(type: string): string {
     task: 'tasks',
     rule: 'rules',
     client: 'clients',
+    exchange: 'exchanges',
   }
 
   return typeToSubdir[type] ?? 'knowledge'
@@ -574,6 +626,7 @@ export async function indexAllMemories(basePath: string): Promise<number> {
   }
 
   await scanDir(basePath)
+  index.rebuildThemeCompilations()
   index.close()
 
   await recordMemoryDebugEvent(basePath, {
@@ -583,6 +636,42 @@ export async function indexAllMemories(basePath: string): Promise<number> {
   })
 
   return count
+}
+
+async function tryAutoVectorizeMemory(basePath: string, memory: Memory): Promise<void> {
+  if (process.env.PAM_AUTO_VECTORIZE === '0') return
+
+  try {
+    await autoIndexSemanticMemory(basePath, memory)
+  } catch (error) {
+    await recordMemoryDebugEvent(basePath, {
+      action: 'memory.semantic_index',
+      outcome: 'error',
+      memory_id: memory.metadata.id,
+      source: memory.metadata.source,
+      details: { message: formatError(error) },
+    })
+  }
+}
+
+function maybeRebuildThemeCompilations(index: MemoryIndex): void {
+  if (process.env.PAM_DEFER_THEME_REBUILD === '1') return
+  index.rebuildThemeCompilations()
+}
+
+async function tryRemoveVector(basePath: string, id: string): Promise<void> {
+  if (process.env.PAM_AUTO_VECTORIZE === '0') return
+
+  try {
+    removeSemanticMemory(basePath, id)
+  } catch (error) {
+    await recordMemoryDebugEvent(basePath, {
+      action: 'memory.semantic_remove',
+      outcome: 'error',
+      memory_id: id,
+      details: { message: formatError(error) },
+    })
+  }
 }
 
 export async function checkIndexConsistency(basePath: string): Promise<ConsistencyReport> {

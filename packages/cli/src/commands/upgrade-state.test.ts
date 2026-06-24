@@ -16,16 +16,16 @@ describe('upgrade state', () => {
   let previousStateDir: string | undefined
 
   beforeEach(async () => {
-    previousStateDir = process.env.PAMH_UPGRADE_STATE_DIR
-    tempDir = await mkdtemp(join(tmpdir(), 'pamh-upgrade-state-test-'))
-    process.env.PAMH_UPGRADE_STATE_DIR = tempDir
+    previousStateDir = process.env.PAM_UPGRADE_STATE_DIR
+    tempDir = await mkdtemp(join(tmpdir(), 'pam-upgrade-state-test-'))
+    process.env.PAM_UPGRADE_STATE_DIR = tempDir
   })
 
   afterEach(async () => {
     if (previousStateDir === undefined) {
-      delete process.env.PAMH_UPGRADE_STATE_DIR
+      delete process.env.PAM_UPGRADE_STATE_DIR
     } else {
-      process.env.PAMH_UPGRADE_STATE_DIR = previousStateDir
+      process.env.PAM_UPGRADE_STATE_DIR = previousStateDir
     }
     await rm(tempDir, { recursive: true, force: true })
   })
@@ -35,7 +35,7 @@ describe('upgrade state', () => {
       runId: 'upgrade-test',
       phase: 'installing',
       message: 'Running npm install',
-      packageSpec: 'pamh-cli@latest',
+      packageSpec: '@supersekai64/pam-cli@latest',
       npmCommand: 'npm.cmd',
       startedAt: '2026-06-15T20:00:00.000Z',
       updatedAt: '2026-06-15T20:00:01.000Z',
@@ -52,17 +52,17 @@ describe('upgrade state', () => {
   })
 
   it('formats missing and existing status', () => {
-    expect(formatUpgradeStatus(null)).toContain('No PAMH upgrade status')
+    expect(formatUpgradeStatus(null)).toContain('No PAM upgrade status')
     expect(
       formatUpgradeStatus({
         runId: 'upgrade-test',
         phase: 'succeeded',
-        message: 'PAMH upgrade completed.',
-        packageSpec: 'pamh-cli@latest',
+        message: 'PAM upgrade completed.',
+        packageSpec: '@supersekai64/pam-cli@latest',
         npmCommand: 'npm',
         startedAt: '2026-06-15T20:00:00.000Z',
         updatedAt: '2026-06-15T20:00:02.000Z',
-        logPath: '/tmp/pamh-upgrade/upgrade-test.log',
+        logPath: '/tmp/pam-upgrade/upgrade-test.log',
         stoppedServices: 1,
         exitCode: 0,
       })

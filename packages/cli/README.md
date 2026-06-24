@@ -1,29 +1,29 @@
-# Portable AI Memory Hub (PAMH)
+# Portable AI Memory (PAM)
 
 CLI for persistent, portable, model-independent AI memory.
 
 ## Installation
 
 ```bash
-npm install -g pamh-cli
+npm install -g @supersekai64/pam-cli
 ```
 
-This installs the `memory` command.
+This installs the `pam` command.
 
 For future global updates, prefer:
 
 ```bash
-memory upgrade
+pam upgrade
 ```
 
-This stops running PAMH UI/MCP services before invoking npm, which avoids
+This stops running PAM UI/MCP services before invoking npm, which avoids
 Windows native-file locks during updates.
 
 For automatic project bootstrap:
 
 ```bash
 cd your-project
-npm install -D pamh-cli
+npm install -D @supersekai64/pam-cli
 ```
 
 Local install creates `.ai-memory/` and supported agent/IDE integration files.
@@ -34,11 +34,11 @@ project config.
 ## Quick Start
 
 ```bash
-memory init
-memory add -t decision -c "Use SQLite for the local memory index"
-memory checkpoint --summary "Finished CLI setup" --fact "PAMH stores project memory in .ai-memory"
-memory search "SQLite"
-memory server start
+pam init
+pam add -t decision -c "Use SQLite for the local pam index"
+pam checkpoint --summary "Finished CLI setup" --fact "PAM stores project memory in .ai-memory" --concept Architecture
+pam search "SQLite"
+pam server start
 ```
 
-See the full documentation at https://github.com/supersekai64/pamh.
+See the full documentation at https://github.com/supersekai64/PAM.

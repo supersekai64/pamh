@@ -2,6 +2,9 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { parseMarkdown, serializeMarkdown } from './markdown.js'
 import { findMemoryFile } from './storage.js'
 import { MemoryIndex } from './indexer.js'
+import { autoIndexSemanticMemory } from './semantic.js'
+import { inferMemoryTheme } from './themes.js'
+import { normalizeConceptList } from './concepts.js'
 import {
   assertMemoryScope,
   assertMemoryStatus,
@@ -50,9 +53,17 @@ export async function supersedeMemory(
       type,
       scope,
       status,
+      theme: inferMemoryTheme({
+        type,
+        content: newInput.content,
+        tags: newInput.tags,
+        source: newInput.source,
+        theme: newInput.theme,
+      }),
       created_at: now,
       updated_at: now,
       tags: newInput.tags ?? [],
+      concepts: normalizeConceptList(newInput.concepts),
       source: newInput.source ?? 'manual',
       supersedes: oldId,
       source_ids: newInput.source_ids,
@@ -82,7 +93,9 @@ export async function supersedeMemory(
   const index = new MemoryIndex(basePath)
   index.indexMemory(newMemory, newFilePath)
   index.indexMemory(oldMemory, oldFilePath)
+  index.rebuildThemeCompilations()
   index.close()
+  await autoIndexSemanticMemory(basePath, newMemory)
 
   return { oldMemory, newMemory }
 }

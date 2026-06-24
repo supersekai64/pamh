@@ -6,6 +6,7 @@ describe('concept quality', () => {
     expect(normalizeConcept('est')).toBeNull()
     expect(normalizeConcept('avec')).toBeNull()
     expect(normalizeConcept('dans')).toBeNull()
+    expect(normalizeConcept('PAM')).toBeNull()
     expect(normalizeConcept('localStorage')).toBe('localstorage')
     expect(normalizeConcept('Next.js')).toBe('nextjs')
   })
@@ -14,7 +15,7 @@ describe('concept quality', () => {
     const candidates = extractConceptCandidates(
       [
         'La sauvegarde localStorage est supprimée quand la grille Sudoku est terminée.',
-        'Le projet Next.js utilise PAMH avec une mémoire locale.',
+        'Le projet Next.js utilise PAM avec une mémoire locale.',
       ].join(' ')
     )
     const ids = candidates.map((candidate) => candidate.id)

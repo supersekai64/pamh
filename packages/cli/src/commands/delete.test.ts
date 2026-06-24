@@ -3,7 +3,7 @@ import { Command } from 'commander'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createMemory, initProjectMemory, readMemory, restoreMemory } from 'pamh-core'
+import { createMemory, initProjectMemory, readMemory, restoreMemory } from '@supersekai64/pam-core'
 
 import { registerDeleteCommand } from './delete.js'
 
@@ -14,7 +14,7 @@ describe('delete command', () => {
 
   beforeEach(async () => {
     previousCwd = process.cwd()
-    tempDir = await mkdtemp(join(tmpdir(), 'pamh-cli-delete-test-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'pam-cli-delete-test-'))
     memoryPath = await initProjectMemory(tempDir)
     process.chdir(tempDir)
   })

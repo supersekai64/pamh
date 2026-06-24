@@ -1,4 +1,4 @@
-export { createPamhMcpServer, startPamhMcpServer } from './server.js'
+export { createPamMcpServer, startPamMcpServer } from './server.js'
 export {
   addMemory,
   compileMemoryContext,

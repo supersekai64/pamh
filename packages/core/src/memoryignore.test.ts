@@ -8,7 +8,7 @@ describe('memoryignore', () => {
   let tempDir: string
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'pamh-ignore-test-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'pam-ignore-test-'))
   })
 
   afterEach(async () => {

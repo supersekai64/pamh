@@ -1,5 +1,10 @@
 import { Command } from 'commander'
-import { readMemory, updateMemory, redactContent, getProjectMemoryPath } from 'pamh-core'
+import {
+  readMemory,
+  updateMemory,
+  redactContent,
+  getProjectMemoryPath,
+} from '@supersekai64/pam-core'
 
 export function registerRedactCommand(program: Command) {
   program

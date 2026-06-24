@@ -1,17 +1,17 @@
 {
-  "name": "pamh-protocol",
-  "version": "0.1.9",
-  "description": "PAMH MCP - Model Context Protocol server for PAMH",
+  "name": "@supersekai64/pam-protocol",
+  "version": "0.1.10",
+  "description": "PAM MCP - Model Context Protocol server for PAM",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/supersekai64/pamh.git",
+    "url": "git+https://github.com/supersekai64/pam.git",
     "directory": "packages/mcp"
   },
-  "homepage": "https://github.com/supersekai64/pamh#readme",
+  "homepage": "https://github.com/supersekai64/pam#readme",
   "bugs": {
-    "url": "https://github.com/supersekai64/pamh/issues"
+    "url": "https://github.com/supersekai64/pam/issues"
   },
   "keywords": [
     "ai",
@@ -44,7 +44,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "pamh-core": "workspace:^",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "@supersekai64/pam-core": "workspace:^"
   }
 }

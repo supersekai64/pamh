@@ -90,6 +90,7 @@ export async function recordAccess(basePath: string, memoryId: string): Promise<
   // Update index
   const index = new MemoryIndex(basePath)
   index.indexMemory(memory, filePath)
+  index.rebuildThemeCompilations()
   index.close()
 
   await recordMemoryDebugEvent(basePath, {
@@ -217,6 +218,7 @@ async function hardDeleteMemory(basePath: string, memoryId: string): Promise<voi
 
   const index = new MemoryIndex(basePath)
   index.removeMemory(memoryId, 'Hard-deleted by decay sweep')
+  index.rebuildThemeCompilations()
   index.close()
 }
 

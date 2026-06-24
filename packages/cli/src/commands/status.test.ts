@@ -12,7 +12,7 @@ describe('status command', () => {
 
   beforeEach(async () => {
     previousCwd = process.cwd()
-    tempDir = await mkdtemp(join(tmpdir(), 'pamh-cli-status-test-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'pam-cli-status-test-'))
     process.chdir(tempDir)
   })
 
@@ -32,7 +32,7 @@ describe('status command', () => {
     ).resolves.toBeDefined()
 
     expect(log).toHaveBeenCalledWith('Using memory: none')
-    expect(log).toHaveBeenCalledWith('Run `memory init` to create project memory.')
+    expect(log).toHaveBeenCalledWith('Run `pam init` to create project memory.')
 
     log.mockRestore()
   })

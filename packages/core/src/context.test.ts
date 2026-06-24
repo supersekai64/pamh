@@ -9,7 +9,7 @@ describe('context', () => {
   let projectDir: string
 
   beforeEach(async () => {
-    projectDir = await mkdtemp(join(tmpdir(), 'pamh-context-project-'))
+    projectDir = await mkdtemp(join(tmpdir(), 'pam-context-project-'))
     await initProjectMemory(projectDir)
   })
 

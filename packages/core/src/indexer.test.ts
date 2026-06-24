@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import Database from 'better-sqlite3'
 import { MemoryIndex } from './indexer.js'
 import { createMemory, initProjectMemory, updateMemory, deleteMemory } from './storage.js'
 
@@ -10,7 +11,7 @@ describe('MemoryIndex', () => {
   let basePath: string
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'pamh-index-test-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'pam-index-test-'))
     basePath = await initProjectMemory(tempDir)
   })
 
@@ -35,6 +36,40 @@ describe('MemoryIndex', () => {
     expect(result!.content).toBe('Use TypeScript for all packages')
     expect(result!.tags).toContain('tech')
     expect(result!.tags).toContain('typescript')
+  })
+
+  it('should migrate an existing index before creating the theme index', async () => {
+    const legacyBasePath = join(tempDir, 'legacy-memory')
+    await mkdir(legacyBasePath, { recursive: true })
+
+    const dbPath = join(legacyBasePath, 'memory.db')
+    const db = new Database(dbPath)
+    db.exec(`
+      CREATE TABLE memories (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        scope TEXT NOT NULL,
+        status TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        source TEXT NOT NULL,
+        title TEXT,
+        content TEXT NOT NULL,
+        file_path TEXT NOT NULL
+      );
+    `)
+    db.close()
+
+    const index = new MemoryIndex(legacyBasePath)
+    index.close()
+
+    const migrated = new Database(dbPath)
+    const columns = migrated.prepare('PRAGMA table_info(memories)').all() as Array<{ name: string }>
+    const indexes = migrated.prepare('PRAGMA index_list(memories)').all() as Array<{ name: string }>
+    migrated.close()
+
+    expect(columns.map((column) => column.name)).toContain('theme')
+    expect(indexes.map((item) => item.name)).toContain('idx_memories_theme')
   })
 
   it('should search by full text', async () => {

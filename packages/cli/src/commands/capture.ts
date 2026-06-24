@@ -4,7 +4,7 @@ import {
   saveAutoCaptureConfig,
   getProjectMemoryPath,
   type AutoCaptureMode,
-} from 'pamh-core'
+} from '@supersekai64/pam-core'
 
 export function registerCaptureCommand(program: Command) {
   const capture = program.command('capture').description('Auto-capture configuration')

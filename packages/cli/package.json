@@ -1,17 +1,17 @@
 {
-  "name": "pamh-cli",
-  "version": "0.1.15",
-  "description": "PAMH CLI - Command line interface for PAMH",
+  "name": "@supersekai64/pam-cli",
+  "version": "0.1.16",
+  "description": "PAM CLI - Command line interface for PAM",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/supersekai64/pamh.git",
+    "url": "git+https://github.com/supersekai64/pam.git",
     "directory": "packages/cli"
   },
-  "homepage": "https://github.com/supersekai64/pamh#readme",
+  "homepage": "https://github.com/supersekai64/pam#readme",
   "bugs": {
-    "url": "https://github.com/supersekai64/pamh/issues"
+    "url": "https://github.com/supersekai64/pam/issues"
   },
   "keywords": [
     "ai",
@@ -21,7 +21,7 @@
     "cli"
   ],
   "bin": {
-    "memory": "dist/index.js"
+    "pam": "dist/index.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -50,10 +50,10 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "commander": "^15.0.0",
-    "pamh-api": "workspace:^",
-    "pamh-core": "workspace:^",
-    "pamh-protocol": "workspace:^",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "@supersekai64/pam-core": "workspace:^",
+    "@supersekai64/pam-protocol": "workspace:^",
+    "@supersekai64/pam-api": "workspace:^"
   },
   "devDependencies": {
     "@types/node": "^25.9.3"

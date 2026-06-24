@@ -1,5 +1,10 @@
 import { Command } from 'commander'
-import { createMemory, getProjectMemoryPath, MEMORY_TYPES, assertSalience } from 'pamh-core'
+import {
+  createMemory,
+  getProjectMemoryPath,
+  MEMORY_TYPES,
+  assertSalience,
+} from '@supersekai64/pam-core'
 
 export function registerAddCommand(program: Command) {
   program
@@ -9,6 +14,7 @@ export function registerAddCommand(program: Command) {
     .requiredOption('-c, --content <content>', 'Memory content')
     .option('--title <title>', 'Short display title')
     .option('--tags <tags>', 'Comma-separated tags')
+    .option('--concepts <concepts>', 'Comma-separated broad canonical concepts')
     .option('--salience <score>', 'Importance score (0-1, default: 0.5)', '0.5')
     .action(async (options) => {
       if (!MEMORY_TYPES.includes(options.type)) {
@@ -19,6 +25,9 @@ export function registerAddCommand(program: Command) {
       const basePath = getProjectMemoryPath(process.cwd())
 
       const tags = options.tags ? options.tags.split(',').map((t: string) => t.trim()) : []
+      const concepts = options.concepts
+        ? options.concepts.split(',').map((concept: string) => concept.trim())
+        : undefined
       let salience: number
       try {
         salience = assertSalience(options.salience)
@@ -33,6 +42,7 @@ export function registerAddCommand(program: Command) {
         title: options.title,
         content: options.content,
         tags,
+        concepts,
         salience,
       })
 

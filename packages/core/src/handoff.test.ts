@@ -15,7 +15,7 @@ describe('handoff', () => {
   let basePath: string
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'pamh-handoff-test-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'pam-handoff-test-'))
     basePath = await initProjectMemory(tempDir)
   })
 

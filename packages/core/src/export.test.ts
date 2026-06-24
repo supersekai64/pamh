@@ -11,7 +11,7 @@ describe('export', () => {
   let basePath: string
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'pamh-export-test-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'pam-export-test-'))
     basePath = await initProjectMemory(tempDir)
   })
 

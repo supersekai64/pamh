@@ -1,5 +1,5 @@
 import { Command } from 'commander'
-import { approveMemory, getProjectMemoryPath } from 'pamh-core'
+import { approveMemory, getProjectMemoryPath } from '@supersekai64/pam-core'
 
 export function registerApproveCommand(program: Command) {
   program

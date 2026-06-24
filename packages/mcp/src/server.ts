@@ -35,27 +35,29 @@ function jsonResult(value: unknown) {
   }
 }
 
-const PAMH_SERVER_INSTRUCTIONS = `PAMH is the persistent memory layer for this project. Use it on EVERY task — not just when asked.
+const PAM_SERVER_INSTRUCTIONS = `PAM is the persistent memory layer for this project. Use it on EVERY task — not just when asked.
 
 MANDATORY workflow:
 1. At the start of every task, call \`search_memory\` (and \`compile_context\` if useful) to retrieve existing rules, preferences, decisions, and recent sessions.
 2. Whenever the user expresses a durable preference, rule, decision, correction, or mistake — capture it IMMEDIATELY with \`add_memory\` (do not defer to end of turn). Triggers include phrases like "always", "never", "from now on", "I want X everywhere", "this should have been remembered".
 3. Before your final response, call \`memory_checkpoint\` with a summary plus relevant decisions/preferences/rules/mistakes/tasks.
 
-Capture is in assisted mode: memories are created as \`proposed\` and require user approval, so capturing is cheap and reversible — when in doubt, capture.
+Capture is automatic by default: new installs use \`auto\` mode, hooks capture Markdown exchanges with simplified and raw sections, and MCP writes consolidate or supersede same-theme memories. Assisted/manual modes remain available for stricter review workflows.
 
-Memory types: \`rule\` (always/never), \`preference\` (style/UX choices), \`decision\` (technical choices), \`knowledge\` (reusable facts), \`mistake\` (lessons), \`session\` (work summary), \`task\` (follow-up). PAMH is project-only; clients do not provide a scope. Always write memory content in English.
+Memory types: \`exchange\` (raw captured conversation), \`rule\` (always/never), \`preference\` (style/UX choices), \`decision\` (technical choices), \`knowledge\` (reusable facts), \`mistake\` (lessons), \`session\` (work summary), \`task\` (follow-up). PAM is project-only; clients do not provide a scope. Always write memory content in English.
+
+Strong concepts: when calling \`add_memory\`, \`edit_memory\`, or \`memory_checkpoint\`, fill the optional \`concepts\` array with 1-3 broad, durable semantic themes chosen by the client AI. Use canonical project/product themes, not button labels, page section names, implementation details, memory types, model names, agent names, status labels, source names, or one-off nouns. Keep concrete details in the memory content as evidence.
 
 Never store secrets, tokens, passwords, or transient logs.`
 
-export function createPamhMcpServer(context: McpToolContext) {
+export function createPamMcpServer(context: McpToolContext) {
   const server = new McpServer(
     {
-      name: 'pamh',
+      name: 'pam',
       version: '0.1.0',
     },
     {
-      instructions: PAMH_SERVER_INSTRUCTIONS,
+      instructions: PAM_SERVER_INSTRUCTIONS,
     }
   )
 
@@ -64,11 +66,12 @@ export function createPamhMcpServer(context: McpToolContext) {
     {
       title: 'Search Memory',
       description:
-        'Search project PAMH memories by text, type, and tag. CALL THIS AT THE START OF EVERY TASK to retrieve existing rules, preferences, and decisions before acting.',
+        'Search project PAM memories by text, type, and tag. CALL THIS AT THE START OF EVERY TASK to retrieve existing rules, preferences, and decisions before acting.',
       inputSchema: {
         query: z.string().optional(),
         type: z.string().optional(),
         tag: z.string().optional(),
+        theme: z.string().optional(),
         limit: z.number().int().positive().optional(),
       },
       annotations: {
@@ -86,7 +89,7 @@ export function createPamhMcpServer(context: McpToolContext) {
     'get_memory',
     {
       title: 'Get Memory',
-      description: 'Get a PAMH memory by ID.',
+      description: 'Get a PAM memory by ID.',
       inputSchema: {
         id: z.string(),
       },
@@ -99,12 +102,14 @@ export function createPamhMcpServer(context: McpToolContext) {
     {
       title: 'Add Memory',
       description:
-        'Add a new PAMH memory. CALL THIS IMMEDIATELY whenever the user expresses a durable preference, rule ("always/never"), decision, correction, or reusable fact — do not defer to end of turn. Client AI agents can include a concise optional title for UI labels. In assisted mode the memory is created as `proposed` (cheap and reversible), so when in doubt, capture.',
+        'Add a new PAM memory. CALL THIS IMMEDIATELY whenever the user expresses a durable preference, rule ("always/never"), decision, correction, or reusable fact — do not defer to end of turn. Default auto mode writes active memories after consolidation; assisted mode writes `proposed` memories for review.',
       inputSchema: {
         content: z.string(),
         title: z.string().optional(),
         type: z.string(),
         tags: z.array(z.string()).optional(),
+        concepts: z.array(z.string()).optional(),
+        theme: z.string().optional(),
         salience: z.number().min(0).max(1).optional(),
       },
       annotations: {
@@ -123,7 +128,7 @@ export function createPamhMcpServer(context: McpToolContext) {
     {
       title: 'Memory Checkpoint',
       description:
-        'Submit a structured checkpoint of durable session learnings. CALL THIS BEFORE YOUR FINAL RESPONSE whenever meaningful project work happened, including a `summary` and any relevant `decisions` / `facts` / `preferences` / `mistakes` / `tasks`. PAMH creates proposed or active memories based on capture mode.',
+        'Submit a structured checkpoint of durable session learnings. CALL THIS BEFORE YOUR FINAL RESPONSE whenever meaningful project work happened, including a `summary` and any relevant `decisions` / `facts` / `preferences` / `mistakes` / `tasks`. PAM creates active memories in auto mode or proposed memories in assisted mode.',
       inputSchema: {
         summary: z.string().optional(),
         decisions: z.array(z.string()).optional(),
@@ -131,6 +136,7 @@ export function createPamhMcpServer(context: McpToolContext) {
         preferences: z.array(z.string()).optional(),
         mistakes: z.array(z.string()).optional(),
         tasks: z.array(z.string()).optional(),
+        concepts: z.array(z.string()).optional(),
         agent: z.string().optional(),
         model: z.string().optional(),
         session_id: z.string().optional(),
@@ -151,13 +157,15 @@ export function createPamhMcpServer(context: McpToolContext) {
     {
       title: 'Edit Memory',
       description:
-        'Edit an existing PAMH memory. Client AI agents can provide a concise optional title to improve UI labels while leaving the full content intact.',
+        'Edit an existing PAM memory. Client AI agents can provide a concise optional title to improve UI labels while leaving the full content intact.',
       inputSchema: {
         id: z.string(),
         content: z.string().optional(),
         title: z.string().optional(),
         type: z.string().optional(),
         tags: z.array(z.string()).optional(),
+        concepts: z.array(z.string()).optional(),
+        theme: z.string().optional(),
       },
     },
     async (input) => jsonResult(await editMemory(input, context))
@@ -167,7 +175,7 @@ export function createPamhMcpServer(context: McpToolContext) {
     'delete_memory',
     {
       title: 'Delete Memory',
-      description: 'Logically delete a PAMH memory.',
+      description: 'Logically delete a PAM memory.',
       inputSchema: {
         id: z.string(),
       },
@@ -179,7 +187,7 @@ export function createPamhMcpServer(context: McpToolContext) {
     'list_projects',
     {
       title: 'List Projects',
-      description: 'List current and linked PAMH projects.',
+      description: 'List current and linked PAM projects.',
       inputSchema: {
         includeCurrent: z.boolean().optional(),
       },
@@ -345,7 +353,7 @@ export function createPamhMcpServer(context: McpToolContext) {
     {
       title: 'Record Hook Event',
       description:
-        'Record a lifecycle hook event (session-start, user-prompt, post-tool-use, session-end, etc.). Use for automatic memory capture.',
+        'Record a lifecycle hook event (session-start, user-prompt, post-tool-use, session-end, etc.). Use for automatic pam capture.',
       inputSchema: {
         type: z.enum([
           'session-start',
@@ -369,8 +377,8 @@ export function createPamhMcpServer(context: McpToolContext) {
   return server
 }
 
-export async function startPamhMcpServer(context: McpToolContext) {
-  const server = createPamhMcpServer(context)
+export async function startPamMcpServer(context: McpToolContext) {
+  const server = createPamMcpServer(context)
   const transport = new StdioServerTransport()
   await server.connect(transport)
 }

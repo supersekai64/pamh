@@ -124,7 +124,7 @@ const STOP_CONCEPTS = new Set([
   'or',
   'par',
   'pas',
-  'pamh',
+  'pam',
   'pour',
   'project',
   'proposed',
@@ -192,6 +192,18 @@ export function extractConceptKeywords(content: string): string[] {
   return extractConceptCandidates(content)
     .filter((candidate) => candidate.category === 'keyword')
     .map((candidate) => candidate.id)
+}
+
+export function normalizeConceptList(values: string[] | undefined): string[] | undefined {
+  if (values === undefined) return undefined
+
+  return Array.from(
+    new Set(
+      values
+        .map((value) => normalizeConcept(value))
+        .filter((value): value is string => Boolean(value))
+    )
+  )
 }
 
 export function tokenizeConceptText(content: string): string[] {

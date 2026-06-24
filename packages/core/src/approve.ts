@@ -56,6 +56,7 @@ export async function approveMemory(basePath: string, id: string): Promise<boole
     }
   }
 
+  index.rebuildThemeCompilations()
   index.close()
 
   await recordMemoryDebugEvent(basePath, {
@@ -106,6 +107,7 @@ export async function rejectMemory(basePath: string, id: string): Promise<boolea
 
   const index = new MemoryIndex(basePath)
   index.indexMemory(memory, filePath)
+  index.rebuildThemeCompilations()
   index.close()
 
   await recordMemoryDebugEvent(basePath, {

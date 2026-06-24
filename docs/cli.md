@@ -12,34 +12,34 @@ pnpm build
 ### Upgrade
 
 ```bash
-memory upgrade
+pam upgrade
 ```
 
-Update the global PAMH CLI. The command starts a small updater process, stops
-running PAMH UI/MCP services, then runs `npm install -g pamh-cli@latest`.
+Update the global PAM CLI. The command starts a small updater process, stops
+running PAM UI/MCP services, then runs `npm install -g @supersekai64/pam-cli@latest`.
 This is the recommended update path on Windows because native SQLite files can
-stay locked while PAMH services are running.
+stay locked while PAM services are running.
 
-`memory upgrade` prints the status file, log file, and a platform-specific
+`pam upgrade` prints the status file, log file, and a platform-specific
 command for following progress live. On Windows, use the printed
 `Get-Content -Wait -LiteralPath ...` command to watch the updater without
-starting another PAMH process during npm installation.
+starting another PAM process during npm installation.
 
 ```bash
-memory upgrade status
-memory upgrade log
+pam upgrade status
+pam upgrade log
 ```
 
-`memory upgrade status` shows the latest recorded phase, package spec, npm
-command, message, and log path. `memory upgrade log` prints the latest log path.
+`pam upgrade status` shows the latest recorded phase, package spec, npm
+command, message, and log path. `pam upgrade log` prints the latest log path.
 
 ### Initialization
 
 ```bash
-memory init
+pam init
 ```
 
-Initialize memory storage in the current directory (`.ai-memory/`) and auto-configure supported agent/IDE integration files. PAMH will search for `.ai-memory/` by walking up the directory tree, similar to how `.git` works.
+Initialize memory storage in the current directory (`.ai-memory/`) and auto-configure supported agent/IDE integration files. PAM will search for `.ai-memory/` by walking up the directory tree, similar to how `.git` works.
 
 **Options:**
 
@@ -48,23 +48,23 @@ Initialize memory storage in the current directory (`.ai-memory/`) and auto-conf
 ### Status
 
 ```bash
-memory status
+pam status
 ```
 
-Show current memory status, including which memory directory is being used and memory counts.
+Show current pam status, including which memory directory is being used and memory counts.
 
 **Example:**
 
 ```bash
-memory status
+pam status
 # Using memory: ~/projects/my-app/.ai-memory/
-# Memories: 12 active, 3 proposed, 1 archived, 2 deleted
+# Memories: 12 active, 0 proposed, 1 archived, 2 deleted
 ```
 
 ### Add Memory
 
 ```bash
-memory add -t <type> -c <content> [options]
+pam add -t <type> -c <content> [options]
 ```
 
 **Options:**
@@ -73,18 +73,19 @@ memory add -t <type> -c <content> [options]
 - `-c, --content <content>` - Memory content (required)
 - `--title <title>` - Short display title, useful when an AI client can summarize the memory
 - `--tags <tags>` - Comma-separated tags
+- `--concepts <concepts>` - Comma-separated broad canonical concepts
 - `--salience <score>` - Importance score from `0` to `1` (default: `0.5`)
 
 **Example:**
 
 ```bash
-memory add -t decision --title "TypeScript package policy" -c "Use TypeScript for all packages" --tags "tech,typescript"
+pam add -t decision --title "TypeScript package policy" -c "Use TypeScript for all packages" --tags "tech,typescript" --concepts "Architecture"
 ```
 
 ### Checkpoint
 
 ```bash
-memory checkpoint [options]
+pam checkpoint [options]
 ```
 
 Submit a structured summary of durable session learnings. This is the CLI fallback for agents that cannot call the MCP `memory_checkpoint` tool. It respects capture mode: `manual` records no durable memories, `assisted` creates `proposed` memories, and `auto` creates `active` memories.
@@ -97,6 +98,7 @@ Submit a structured summary of durable session learnings. This is the CLI fallba
 - `--preference <preference>` - Durable UX or workflow preference (repeatable)
 - `--mistake <mistake>` - Reusable lesson from a correction or bug (repeatable)
 - `--task <task>` - Follow-up task (repeatable)
+- `--concept <concept>` - Broad canonical concept for generated checkpoint memories (repeatable)
 - `--agent <agent>` - Agent name to tag checkpoint memories
 - `--model <model>` - Model name to tag checkpoint memories
 - `--session-id <session_id>` - Session identifier for hook/audit records
@@ -105,17 +107,18 @@ Submit a structured summary of durable session learnings. This is the CLI fallba
 **Example:**
 
 ```bash
-memory checkpoint \
+pam checkpoint \
   --summary "Updated the local UI workflow" \
-  --decision "Use Evidence as the review queue for proposed memories" \
-  --preference "Proposed memories should be prominent in the sidebar" \
+  --decision "Use automatic capture as the default memory path" \
+  --preference "Active memories should be prominent in the sidebar" \
+  --concept UI \
   --agent codex
 ```
 
 ### List Memories
 
 ```bash
-memory list [options]
+pam list [options]
 ```
 
 **Options:**
@@ -126,13 +129,13 @@ memory list [options]
 **Example:**
 
 ```bash
-memory list --type decision --tag architecture
+pam list --type decision --tag architecture
 ```
 
 ### Show Memory
 
 ```bash
-memory show <id> [options]
+pam show <id> [options]
 ```
 
 **Options:**
@@ -143,13 +146,13 @@ memory show <id> [options]
 **Example:**
 
 ```bash
-memory show mem_abc123def456
+pam show mem_abc123def456
 ```
 
 ### Edit Memory
 
 ```bash
-memory edit <id> [options]
+pam edit <id> [options]
 ```
 
 **Options:**
@@ -158,17 +161,18 @@ memory edit <id> [options]
 - `--title <title>` - New short display title; pass an empty string to clear it
 - `-t, --type <type>` - New type
 - `--tags <tags>` - New comma-separated tags
+- `--concepts <concepts>` - New comma-separated broad canonical concepts
 
 **Example:**
 
 ```bash
-memory edit mem_abc123 --title "Updated API decision" -c "Updated content" --tags "updated"
+pam edit mem_abc123 --title "Updated API decision" -c "Updated content" --tags "updated" --concepts "Architecture"
 ```
 
 ### Delete Memory
 
 ```bash
-memory delete <id> [options]
+pam delete <id> [options]
 ```
 
 **Options:**
@@ -176,7 +180,7 @@ memory delete <id> [options]
 **Example:**
 
 ```bash
-memory delete mem_abc123
+pam delete mem_abc123
 ```
 
 By default, deletion is logical (status set to `deleted`). Use `--physical`
@@ -186,7 +190,7 @@ recoverable `.ai-memory/backups/*.bak` copy first.
 ### Archive Memory
 
 ```bash
-memory archive <id> [options]
+pam archive <id> [options]
 ```
 
 Archive a memory by setting its status to `archived`.
@@ -196,13 +200,13 @@ Archive a memory by setting its status to `archived`.
 **Example:**
 
 ```bash
-memory archive mem_abc123
+pam archive mem_abc123
 ```
 
 ### Search Memories
 
 ```bash
-memory search [query] [options]
+pam search [query] [options]
 ```
 
 **Options:**
@@ -215,17 +219,17 @@ memory search [query] [options]
 **Examples:**
 
 ```bash
-memory search "TypeScript"
-memory search --tag "architecture"
-memory search "database" --tag "sql" --limit 10
-memory search "frontend framework" --semantic
+pam search "TypeScript"
+pam search --tag "architecture"
+pam search "database" --tag "sql" --limit 10
+pam search "frontend framework" --semantic
 ```
 
-Lexical search runs exact matching first. If there are no exact hits, PAMH
+Lexical search runs exact matching first. If there are no exact hits, PAM
 falls back to related tags and synonyms, so natural queries such as
-`memory search "database choice"` can still find a stored PostgreSQL decision.
+`pam search "database choice"` can still find a stored PostgreSQL decision.
 
-Semantic search uses either optional local embeddings or OpenAI embeddings. For local embeddings with the global CLI, install `@xenova/transformers` globally once:
+Semantic search uses built-in local hash embeddings by default. For optional local model embeddings with the global CLI, install `@xenova/transformers` globally once and set `EMBEDDING_PROVIDER=local`:
 
 ```bash
 npm install -g @xenova/transformers
@@ -236,41 +240,41 @@ For OpenAI embeddings, set `EMBEDDING_PROVIDER=openai` and `OPENAI_API_KEY`.
 ### Index Management
 
 ```bash
-memory index build [options]
+pam index build [options]
 ```
 
 Index all memories into SQLite.
 
 ```bash
-memory index rebuild [options]
+pam index rebuild [options]
 ```
 
 Rebuild the entire index from scratch.
 
 ```bash
-memory reindex [options]
+pam reindex [options]
 ```
 
-Top-level alias for `memory index rebuild`.
+Top-level alias for `pam index rebuild`.
 
 **Options:**
 
 ### Doctor
 
 ```bash
-memory doctor check [options]
+pam doctor check [options]
 ```
 
 Check consistency between Markdown files and SQLite index.
 
 ```bash
-memory doctor stats [options]
+pam doctor stats [options]
 ```
 
 Show memory statistics (counts by status, type, and tags).
 
 ```bash
-memory doctor integrations [options]
+pam doctor integrations [options]
 ```
 
 Check first-run readiness: `.ai-memory`, generated agent instructions, MCP
@@ -278,31 +282,31 @@ configs, hooks, and stale unsupported flags such as `--project`.
 
 **Options:**
 
-### Review Queue
+### Review-Mode Queue
 
 ```bash
-memory review [options]
+pam review [options]
 ```
 
-Show proposed memories waiting for approval.
+Show proposed memories waiting for approval. This is mainly for assisted mode;
+the default auto workflow should normally keep this queue empty.
 
 ### Smoke Test
 
 ```bash
-memory smoke-test agent [options]
+pam smoke-test agent [options]
 ```
 
-Create a proposed test memory and verify that the local store and review queue
-are reachable. Approve the printed memory ID, then run the printed search or
-context command to confirm recall.
+Create an active test memory and verify that the local store, index, and context
+path are reachable. Run the printed search or context command to confirm recall.
 
-This command is the quickest proof that PAMH is not only installed but also
+This command is the quickest proof that PAM is not only installed but also
 capturing into the project store that the CLI, MCP server, API, and UI share.
 
 ### Redact Memory
 
 ```bash
-memory redact <id> [options]
+pam redact <id> [options]
 ```
 
 Redact sensitive information (emails, API keys, tokens, passwords, secrets) from a memory.
@@ -312,17 +316,17 @@ Redact sensitive information (emails, API keys, tokens, passwords, secrets) from
 **Example:**
 
 ```bash
-memory redact mem_abc123
+pam redact mem_abc123
 ```
 
 ### Restore Memory
 
 ```bash
-memory restore <id> [options]
+pam restore <id> [options]
 ```
 
 Restore a logically deleted memory (status back to `active`). If the Markdown
-file was physically deleted, PAMH restores the latest matching backup from
+file was physically deleted, PAM restores the latest matching backup from
 `.ai-memory/backups/`.
 
 **Options:**
@@ -330,13 +334,13 @@ file was physically deleted, PAMH restores the latest matching backup from
 **Example:**
 
 ```bash
-memory restore mem_abc123
+pam restore mem_abc123
 ```
 
 ### Audit
 
 ```bash
-memory audit [options]
+pam audit [options]
 ```
 
 Display comprehensive memory statistics including counts by status, type, top tags, and index status.
@@ -346,7 +350,7 @@ Display comprehensive memory statistics including counts by status, type, top ta
 ### Export
 
 ```bash
-memory export <output> [options]
+pam export <output> [options]
 ```
 
 Export all memories to a file.
@@ -358,16 +362,16 @@ Export all memories to a file.
 **Examples:**
 
 ```bash
-memory export backup.zip
-memory export backup.json --format json
-memory export backup.md --format markdown
-memory export memory.sqlite --format sqlite
+pam export backup.zip
+pam export backup.json --format json
+pam export backup.md --format markdown
+pam export memory.sqlite --format sqlite
 ```
 
 ### Import
 
 ```bash
-memory import <input> [options]
+pam import <input> [options]
 ```
 
 Import memories from a file.
@@ -380,16 +384,16 @@ Import memories from a file.
 **Examples:**
 
 ```bash
-memory import backup.json
-memory import backup.zip --format zip
-memory import memory.md --format markdown
-memory import team-backup.json --collision supersede
+pam import backup.json
+pam import backup.zip --format zip
+pam import memory.md --format markdown
+pam import team-backup.json --collision supersede
 ```
 
 ### Context
 
 ```bash
-memory context [options]
+pam context [options]
 ```
 
 Compile context from project memory and optional search results into a single document suitable for LLM consumption. The output groups memories by durable meaning rather than raw storage order, and omits project-only scope metadata.
@@ -405,16 +409,16 @@ Compile context from project memory and optional search results into a single do
 **Examples:**
 
 ```bash
-memory context
-memory context --query "TypeScript architecture"
-memory context --max-tokens 2000 --output
-memory context --no-search
+pam context
+pam context --query "TypeScript architecture"
+pam context --max-tokens 2000 --output
+pam context --no-search
 ```
 
 ### Supersede Memory
 
 ```bash
-memory supersede create <old_id> -t <type> -c <content> [options]
+pam supersede create <old_id> -t <type> -c <content> [options]
 ```
 
 Create a new memory that replaces an existing memory. The old memory is archived and linked to the new version.
@@ -427,8 +431,8 @@ Create a new memory that replaces an existing memory. The old memory is archived
 - `--salience <salience>` - Importance score from `0` to `1` (default: `0.5`)
 
 ```bash
-memory supersede chain <memory_id> [options]
-memory supersede latest <memory_id> [options]
+pam supersede chain <memory_id> [options]
+pam supersede latest <memory_id> [options]
 ```
 
 Show the full supersession chain or only the latest version.
@@ -436,17 +440,17 @@ Show the full supersession chain or only the latest version.
 **Examples:**
 
 ```bash
-memory supersede create mem_abc123 -t decision -c "Use SQLite for local indexing"
-memory supersede chain mem_abc123
-memory supersede latest mem_abc123
+pam supersede create mem_abc123 -t decision -c "Use SQLite for local indexing"
+pam supersede chain mem_abc123
+pam supersede latest mem_abc123
 ```
 
 ### Handoff
 
 ```bash
-memory handoff begin -s <summary> [options]
-memory handoff accept [options]
-memory handoff list [options]
+pam handoff begin -s <summary> [options]
+pam handoff accept [options]
+pam handoff list [options]
 ```
 
 Create, accept, and list cross-agent handoffs so another agent can resume with current context.
@@ -462,15 +466,15 @@ Create, accept, and list cross-agent handoffs so another agent can resume with c
 **Examples:**
 
 ```bash
-memory handoff begin -a opencode -s "Implemented storage changes" -n "Run release checks"
-memory handoff accept -a claude-code
-memory handoff list --status open
+pam handoff begin -a opencode -s "Implemented storage changes" -n "Run release checks"
+pam handoff accept -a claude-code
+pam handoff list --status open
 ```
 
 ### Decay
 
 ```bash
-memory decay sweep [options]
+pam decay sweep [options]
 ```
 
 Run a forget sweep. Memories below the decay threshold are soft-deleted, while old archived memories can be physically removed after the configured retention period.
@@ -487,21 +491,21 @@ Run a forget sweep. Memories below the decay threshold are soft-deleted, while o
 **Example:**
 
 ```bash
-memory decay sweep --dry-run
+pam decay sweep --dry-run
 ```
 
 ### Intelligence
 
 ```bash
-memory intelligence recommend [options]
-memory intelligence list [options]
-memory intelligence cleanup [options]
-memory intelligence distill [options]
-memory intelligence graph [options]
-memory intelligence seed-eval [options]
+pam intelligence recommend [options]
+pam intelligence list [options]
+pam intelligence cleanup [options]
+pam intelligence distill [options]
+pam intelligence graph [options]
+pam intelligence seed-eval [options]
 ```
 
-Analyze memory quality and produce reviewable maintenance proposals.
+Analyze memory quality and produce optional diagnostic maintenance proposals.
 
 **Common options:**
 
@@ -510,9 +514,9 @@ Analyze memory quality and produce reviewable maintenance proposals.
 **Recommendation actions:**
 
 ```bash
-memory intelligence apply <id> [options]
-memory intelligence reject <id> [options]
-memory intelligence defer <id> [options]
+pam intelligence apply <id> [options]
+pam intelligence reject <id> [options]
+pam intelligence defer <id> [options]
 ```
 
 `apply` accepts `--confirm-physical-delete` for recommendations that explicitly
@@ -521,36 +525,39 @@ request physical deletion.
 **Examples:**
 
 ```bash
-memory intelligence recommend
-memory intelligence cleanup
-memory intelligence distill
-memory intelligence distill --apply
-memory intelligence graph --json
-memory intelligence seed-eval
+pam intelligence recommend
+pam intelligence cleanup
+pam intelligence distill
+pam intelligence distill --apply
+pam intelligence graph --json
+pam intelligence seed-eval
 ```
 
-The intelligence layer keeps recommendations separate from memory mutations.
-Distillation creates proposed memories by default and preserves source evidence
-IDs. See `docs/intelligence.md` for the full model.
+The intelligence layer keeps recommendations separate from the normal automatic
+capture path. Distillation preserves source evidence IDs. See
+`docs/intelligence.md` for the full model.
 
 ### Server
 
 ```bash
-memory server start
+pam server start
 ```
 
-Start the PAMH MCP server over stdio. This command is intended to be launched by MCP-compatible clients such as Claude Code, OpenCode, Cursor, Continue.dev, or other agent runtimes.
+Start the PAM MCP server over stdio. This command is intended to be launched by MCP-compatible clients such as Claude Code, OpenCode, Cursor, Continue.dev, or other agent runtimes.
 
 See `docs/mcp.md` for integration details.
 
 ### Hooks
 
 ```bash
-memory hook record <type> [options]
+pam hook record <type> [options]
 ```
 
-Record an agent lifecycle event for assisted capture workflows. This is intended
-for tools that can run shell hooks even when they do not call MCP directly.
+Record an agent lifecycle event for automatic capture workflows. This is
+intended for tools that can run shell hooks even when they do not call MCP
+directly. Textual prompt hooks create redacted Markdown `exchange` memories in
+auto/assisted mode. Each exchange memory includes a `Simplified` section for
+quick review and a preserved `Raw Exchange` section for auditability.
 
 **Options:**
 
@@ -559,25 +566,25 @@ for tools that can run shell hooks even when they do not call MCP directly.
 - `--session-id <sessionId>` - Agent session identifier
 - `--data <json>` - Additional event data as a JSON object
 
-When `--data` is omitted, `memory hook record` also accepts JSON or plain text
-from stdin. This lets lifecycle hook systems pass the current prompt to PAMH
+When `--data` is omitted, `pam hook record` also accepts JSON or plain text
+from stdin. This lets lifecycle hook systems pass the current prompt to PAM
 without shell-escaping it.
 
 **Examples:**
 
 ```bash
-memory hook record session-start --agent claude-code
-memory hook record session-end --agent codex --model gpt-5
-echo '{"text":"Always update docs after code changes"}' | memory hook record user-prompt --agent local-hook
+pam hook record session-start --agent claude-code
+pam hook record session-end --agent codex --model gpt-5
+echo '{"text":"Always update docs after code changes"}' | pam hook record user-prompt --agent local-hook
 ```
 
 ### Local UI
 
 ```bash
-memory ui [options]
+pam ui [options]
 ```
 
-Start the local PAMH web UI and API server.
+Start the local PAM web UI and API server.
 
 **Options:**
 
@@ -588,9 +595,9 @@ Start the local PAMH web UI and API server.
 **Examples:**
 
 ```bash
-memory ui
-memory ui --open
-memory ui --port 4040
+pam ui
+pam ui --open
+pam ui --port 4040
 ```
 
 ## Memory Types

@@ -1,5 +1,5 @@
 import { Command } from 'commander'
-import { listMemories, MemoryIndex, getProjectMemoryPath } from 'pamh-core'
+import { listMemories, MemoryIndex, getProjectMemoryPath } from '@supersekai64/pam-core'
 
 export function registerAuditCommand(program: Command) {
   program

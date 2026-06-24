@@ -35,12 +35,12 @@ async function main(): Promise<void> {
       await delay(options.waitMs)
     }
 
-    recordProgress(options, 'stopping-services', 'Stopping running PAMH UI/MCP services.')
-    const stopped = await stopRunningPamhServices(options.dryRun)
+    recordProgress(options, 'stopping-services', 'Stopping running PAM UI/MCP services.')
+    const stopped = await stopRunningPAMServices(options.dryRun)
     recordProgress(
       options,
       'stopping-services',
-      `Stopped ${stopped.length} running PAMH service${stopped.length === 1 ? '' : 's'}.`,
+      `Stopped ${stopped.length} running PAM service${stopped.length === 1 ? '' : 's'}.`,
       { stoppedServices: stopped.length }
     )
 
@@ -55,7 +55,7 @@ async function main(): Promise<void> {
     }
 
     await execFileLogged(options.npmCommand, args, options)
-    recordProgress(options, 'succeeded', 'PAMH upgrade completed.', {
+    recordProgress(options, 'succeeded', 'PAM upgrade completed.', {
       stoppedServices: stopped.length,
       exitCode: 0,
     })
@@ -69,7 +69,7 @@ async function main(): Promise<void> {
 
 function parseArgs(args: string[]): UpgradeOptions {
   const options: UpgradeOptions = {
-    packageSpec: 'pamh-cli@latest',
+    packageSpec: '@supersekai64/pam-cli@latest',
     npmCommand: process.platform === 'win32' ? 'npm.cmd' : 'npm',
     waitMs: 1000,
     dryRun: false,
@@ -149,21 +149,21 @@ function createStatus(
   }
 }
 
-async function stopRunningPamhServices(dryRun: boolean): Promise<number[]> {
+async function stopRunningPAMServices(dryRun: boolean): Promise<number[]> {
   if (process.platform === 'win32') {
-    return stopWindowsPamhServices(dryRun)
+    return stopWindowsPAMServices(dryRun)
   }
 
-  return stopUnixPamhServices(dryRun)
+  return stopUnixPAMServices(dryRun)
 }
 
-function stopWindowsPamhServices(dryRun: boolean): Promise<number[]> {
+function stopWindowsPAMServices(dryRun: boolean): Promise<number[]> {
   const command = `
 $ownPid = ${ownPid}
 $processes = Get-CimInstance Win32_Process -Filter "name = 'node.exe'" |
   Where-Object {
     $_.ProcessId -ne $ownPid -and
-    $_.CommandLine -match 'pamh-cli[\\\\/]dist[\\\\/]index\\.js' -and
+    $_.CommandLine -match 'pam-cli[\\\\/]dist[\\\\/]index\\.js' -and
     ($_.CommandLine -match '\\sui(\\s|$)' -or $_.CommandLine -match '\\sserver\\s+start(\\s|$)')
   }
 $ids = @($processes | ForEach-Object { $_.ProcessId })
@@ -184,10 +184,10 @@ $ids -join ','
   })
 }
 
-function stopUnixPamhServices(dryRun: boolean): Promise<number[]> {
+function stopUnixPAMServices(dryRun: boolean): Promise<number[]> {
   const script = `
 set -e
-ids="$(ps -eo pid=,args= | awk '/pamh-cli\\/dist\\/index\\.js/ && (/ ui( |$)/ || / server start( |$)/) {print $1}' | grep -v "^${ownPid}$" || true)"
+ids="$(ps -eo pid=,args= | awk '/pam-cli\\/dist\\/index\\.js/ && (/ ui( |$)/ || / server start( |$)/) {print $1}' | grep -v "^${ownPid}$" || true)"
 if [ -n "$ids" ] && [ "${dryRun ? '0' : '1'}" = "1" ]; then
   kill $ids 2>/dev/null || true
 fi

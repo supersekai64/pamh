@@ -38,7 +38,7 @@ import { getCliVersion } from './version.js'
 
 const program = new Command()
 
-program.name('memory').description('Portable AI Memory Hub CLI').version(getCliVersion())
+program.name('pam').description('Portable AI Memory CLI').version(getCliVersion())
 
 registerInitCommand(program)
 registerAddCommand(program)

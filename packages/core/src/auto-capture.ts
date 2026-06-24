@@ -18,7 +18,7 @@ export interface AutoCaptureRule {
 }
 
 const DEFAULT_CONFIG: AutoCaptureConfig = {
-  mode: 'assisted',
+  mode: 'auto',
 }
 
 export async function loadAutoCaptureConfig(basePath: string): Promise<AutoCaptureConfig> {

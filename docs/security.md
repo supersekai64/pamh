@@ -1,6 +1,6 @@
 # Security
 
-PAMH is local-first. Memory is stored on disk, owned by the user, and designed to remain readable and auditable.
+PAM is local-first. Memory is stored on disk, owned by the user, and designed to remain readable and auditable.
 
 ## Data Storage
 
@@ -10,7 +10,7 @@ PAMH is local-first. Memory is stored on disk, owned by the user, and designed t
 
 ## Sensitive Data
 
-PAMH includes basic redaction for common sensitive values:
+PAM includes basic redaction for common sensitive values:
 
 - email addresses
 - API keys
@@ -23,14 +23,15 @@ PAMH includes basic redaction for common sensitive values:
 Use:
 
 ```bash
-memory redact <id>
+pam redact <id>
 ```
 
 Redaction is intentionally conservative. Users should still review memories before exporting, sharing, or committing them.
 
 Lifecycle hook observations are redacted before they are written to
 `.ai-memory/observations/*.jsonl`. Durable session memories store event counts
-and summaries, not raw prompt transcripts.
+and summaries. Textual prompt hooks also create redacted raw Markdown
+`exchange` memories in auto/assisted mode.
 
 ## `.memoryignore`
 
@@ -55,21 +56,21 @@ build/
 
 ## Deletion
 
-`memory delete` performs logical deletion by setting `status: deleted` in Markdown metadata.
+`pam delete` performs logical deletion by setting `status: deleted` in Markdown metadata.
 
 Use:
 
 ```bash
-memory restore <id>
+pam restore <id>
 ```
 
 Physical deletion requires an explicit destructive path. In the CLI, use
-`memory delete <id> --physical --yes`; in the UI, type the memory ID when
-prompted. Prefer logical deletion plus `memory restore <id>` unless you need to
+`pam delete <id> --physical --yes`; in the UI, type the memory ID when
+prompted. Prefer logical deletion plus `pam restore <id>` unless you need to
 remove the file from disk.
 
-Before physical deletion, PAMH writes a local `.ai-memory/backups/*.bak` copy.
-`memory restore <id>` can restore from the latest matching backup if the
+Before physical deletion, PAM writes a local `.ai-memory/backups/*.bak` copy.
+`pam restore <id>` can restore from the latest matching backup if the
 original Markdown file has already been removed.
 
 The local UI/API server uses a per-instance session token for POST/PATCH/DELETE
@@ -80,4 +81,4 @@ not for exposure on a network interface.
 
 The MCP server runs over stdio and uses the current working directory as the project root.
 
-Before enabling PAMH in an MCP client, review which project directory that client starts from.
+Before enabling PAM in an MCP client, review which project directory that client starts from.

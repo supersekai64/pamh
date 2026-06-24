@@ -1,8 +1,8 @@
 {
-  "name": "pamh-monorepo",
+  "name": "pam-monorepo",
   "version": "0.1.1",
   "private": true,
-  "description": "Portable AI Memory Hub",
+  "description": "Portable AI Memory",
   "type": "module",
   "license": "MIT",
   "packageManager": "pnpm@9.15.0",

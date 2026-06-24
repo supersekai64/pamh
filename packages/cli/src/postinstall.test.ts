@@ -13,7 +13,7 @@ describe('postinstall project bootstrap', () => {
   let postinstallPath: string
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'pamh-postinstall-test-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'pam-postinstall-test-'))
     postinstallPath = await prepareInstalledPackageFixture()
     await writeProjectPackageJson({})
   })
@@ -22,18 +22,18 @@ describe('postinstall project bootstrap', () => {
     await rm(tempDir, { recursive: true, force: true })
   })
 
-  it('waits for npm to persist a direct pamh-cli dependency before initializing', async () => {
+  it('waits for npm to persist a direct @supersekai64/pam-cli dependency before initializing', async () => {
     const child = spawn(process.execPath, [postinstallPath, '--deferred', tempDir], {
       env: {
         ...process.env,
-        PAMH_POSTINSTALL_POLL_MS: '20',
-        PAMH_POSTINSTALL_TIMEOUT_MS: '2000',
+        PAM_POSTINSTALL_POLL_MS: '20',
+        PAM_POSTINSTALL_TIMEOUT_MS: '2000',
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
 
     await new Promise((resolve) => setTimeout(resolve, 80))
-    await writeProjectPackageJson({ devDependencies: { 'pamh-cli': '^0.1.14' } })
+    await writeProjectPackageJson({ devDependencies: { '@supersekai64/pam-cli': '^0.1.14' } })
 
     const result = await waitForExit(child)
 
@@ -49,7 +49,7 @@ describe('postinstall project bootstrap', () => {
       join(tempDir, 'package.json'),
       JSON.stringify(
         {
-          name: 'pamh-postinstall-fixture',
+          name: 'pam-postinstall-fixture',
           version: '1.0.0',
           ...extra,
         },
@@ -61,8 +61,8 @@ describe('postinstall project bootstrap', () => {
   }
 
   async function prepareInstalledPackageFixture() {
-    const cliScriptsDir = join(tempDir, 'node_modules', 'pamh-cli', 'scripts')
-    const coreDir = join(tempDir, 'node_modules', 'pamh-core')
+    const cliScriptsDir = join(tempDir, 'node_modules', '@supersekai64/pam-cli', 'scripts')
+    const coreDir = join(tempDir, 'node_modules', '@supersekai64/pam-core')
     await mkdir(cliScriptsDir, { recursive: true })
     await mkdir(coreDir, { recursive: true })
 
@@ -71,7 +71,11 @@ describe('postinstall project bootstrap', () => {
 
     await writeFile(
       join(coreDir, 'package.json'),
-      JSON.stringify({ name: 'pamh-core', type: 'module', main: './index.js' }, null, 2),
+      JSON.stringify(
+        { name: '@supersekai64/pam-core', type: 'module', main: './index.js' },
+        null,
+        2
+      ),
       'utf-8'
     )
     await writeFile(
@@ -91,7 +95,7 @@ export async function initAutoCaptureConfig(memoryPath) {
 }
 
 export async function configureProjectIntegrations(projectPath) {
-  await writeFile(join(projectPath, 'AGENTS.md'), 'PAMH instructions\\n', 'utf-8')
+  await writeFile(join(projectPath, 'AGENTS.md'), 'PAM instructions\\n', 'utf-8')
   await writeFile(join(projectPath, '.mcp.json'), '{"mcpServers":{}}\\n', 'utf-8')
   return { results: [{ status: 'created' }, { status: 'created' }] }
 }

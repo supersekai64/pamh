@@ -18,6 +18,33 @@ type TransformersModule = {
 
 const LOCAL_EMBEDDINGS_PACKAGE = '@xenova/transformers'
 
+export class HashEmbeddingProvider implements EmbeddingProvider {
+  private dimensions: number
+
+  constructor(dimensions = 384) {
+    this.dimensions = dimensions
+  }
+
+  async generate(text: string): Promise<number[]> {
+    const vector = new Array(this.dimensions).fill(0) as number[]
+    const tokens = tokenize(text)
+
+    for (const token of tokens) {
+      const hash = hashToken(token)
+      const index = Math.abs(hash) % this.dimensions
+      vector[index] += hash < 0 ? -1 : 1
+    }
+
+    const magnitude = Math.sqrt(vector.reduce((sum, value) => sum + value * value, 0))
+    if (!magnitude) return vector
+    return vector.map((value) => value / magnitude)
+  }
+
+  getDimensions(): number {
+    return this.dimensions
+  }
+}
+
 export class LocalEmbeddingProvider implements EmbeddingProvider {
   private model: FeatureExtractionPipeline | null = null
   private modelName: string
@@ -94,17 +121,21 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
 }
 
 export function createEmbeddingProvider(config?: {
-  type?: 'local' | 'openai'
+  type?: 'hash' | 'local' | 'openai'
   openaiApiKey?: string
   openaiModel?: string
 }): EmbeddingProvider {
-  const type = config?.type || process.env.EMBEDDING_PROVIDER || 'local'
+  const type = config?.type || process.env.EMBEDDING_PROVIDER || 'hash'
 
   if (type === 'openai') {
     return new OpenAIEmbeddingProvider(config?.openaiApiKey, config?.openaiModel)
   }
 
-  return new LocalEmbeddingProvider()
+  if (type === 'local') {
+    return new LocalEmbeddingProvider()
+  }
+
+  return new HashEmbeddingProvider()
 }
 
 async function loadTransformers(): Promise<TransformersModule> {
@@ -115,7 +146,7 @@ async function loadTransformers(): Promise<TransformersModule> {
       throw new Error(
         [
           'Local semantic search requires the optional @xenova/transformers package.',
-          'Install it next to PAMH with: npm install -g @xenova/transformers',
+          'Install it next to PAM with: npm install -g @xenova/transformers',
           'Or use OpenAI embeddings by setting EMBEDDING_PROVIDER=openai and OPENAI_API_KEY.',
         ].join(' ')
       )
@@ -132,4 +163,23 @@ function isMissingOptionalDependency(error: unknown): boolean {
     (error as NodeJS.ErrnoException).code === 'ERR_MODULE_NOT_FOUND' &&
     error.message.includes(LOCAL_EMBEDDINGS_PACKAGE)
   )
+}
+
+function tokenize(text: string): string[] {
+  return (
+    text
+      .toLowerCase()
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .match(/[a-z0-9][a-z0-9_.+#-]*/g) ?? []
+  )
+}
+
+function hashToken(token: string): number {
+  let hash = 0x811c9dc5
+  for (let index = 0; index < token.length; index += 1) {
+    hash ^= token.charCodeAt(index)
+    hash = Math.imul(hash, 0x01000193)
+  }
+  return hash | 0
 }

@@ -1,17 +1,17 @@
 {
-  "name": "pamh-core",
-  "version": "0.1.8",
-  "description": "PAMH Core - Memory storage, indexing and search",
+  "name": "@supersekai64/pam-core",
+  "version": "0.1.9",
+  "description": "PAM Core - Memory storage, indexing and search",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/supersekai64/pamh.git",
+    "url": "git+https://github.com/supersekai64/pam.git",
     "directory": "packages/core"
   },
-  "homepage": "https://github.com/supersekai64/pamh#readme",
+  "homepage": "https://github.com/supersekai64/pam#readme",
   "bugs": {
-    "url": "https://github.com/supersekai64/pamh/issues"
+    "url": "https://github.com/supersekai64/pam/issues"
   },
   "keywords": [
     "ai",
@@ -26,6 +26,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./titles": {
+      "types": "./dist/titles.d.ts",
+      "import": "./dist/titles.js"
     }
   },
   "scripts": {
