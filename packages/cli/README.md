@@ -41,4 +41,4 @@ pam search "SQLite"
 pam server start
 ```
 
-See the full documentation at https://github.com/supersekai64/pamh.
+See the full documentation at https://github.com/supersekai64/pam.
