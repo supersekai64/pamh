@@ -2,7 +2,6 @@ import { randomBytes } from 'node:crypto'
 import { createReadStream, existsSync } from 'node:fs'
 import { readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { createRequire } from 'node:module'
 import { basename, dirname, extname, join, normalize, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
@@ -219,7 +218,6 @@ interface LocalPackageManifest {
 const DEFAULT_HOST = '127.0.0.1'
 const DEFAULT_PORT = 3939
 const SERVER_DIST_DIR = dirname(fileURLToPath(import.meta.url))
-const nodeRequire = createRequire(import.meta.url)
 
 function resolveDefaultStaticDir(): string {
   const candidates = [
@@ -945,10 +943,7 @@ async function buildPackageVersions(): Promise<PackageVersionsResponse> {
 }
 
 async function readPackageManifest(spec: PackageVersionSpec): Promise<LocalPackageManifest | null> {
-  const manifestPaths = [
-    join(SERVER_DIST_DIR, spec.workspaceManifest),
-    resolveInstalledPackageManifest(spec.name),
-  ].filter((item): item is string => Boolean(item))
+  const manifestPaths = getPackageManifestCandidates(spec)
 
   for (const manifestPath of manifestPaths) {
     try {
@@ -971,12 +966,68 @@ async function readPackageManifest(spec: PackageVersionSpec): Promise<LocalPacka
   return null
 }
 
-function resolveInstalledPackageManifest(packageName: string): string | null {
+function getPackageManifestCandidates(spec: PackageVersionSpec): string[] {
+  return uniquePaths([
+    join(SERVER_DIST_DIR, spec.workspaceManifest),
+    join(SERVER_DIST_DIR, '../../', getPublishedPackageDir(spec.name), 'package.json'),
+    ...resolveInstalledPackageManifests(spec.name),
+    ...getAncestorPackageManifestCandidates(process.argv[1]),
+  ])
+}
+
+function getPublishedPackageDir(packageName: string): string {
+  return packageName.split('/').at(-1) ?? packageName
+}
+
+function resolveInstalledPackageManifests(packageName: string): string[] {
+  const resolvedEntry = tryResolvePackageImport(packageName)
+  const resolvedManifest = tryResolvePackageImport(`${packageName}/package.json`)
+
+  return uniquePaths([
+    resolvedEntry ? join(dirname(resolvedEntry), '../package.json') : null,
+    resolvedManifest,
+  ])
+}
+
+function tryResolvePackageImport(specifier: string): string | null {
   try {
-    return join(dirname(nodeRequire.resolve(packageName)), '../package.json')
+    return resolvePackageImport(specifier)
   } catch {
     return null
   }
+}
+
+function getAncestorPackageManifestCandidates(startPath: string | undefined): string[] {
+  if (!startPath) return []
+
+  let currentPath = resolve(startPath)
+  if (extname(currentPath)) currentPath = dirname(currentPath)
+
+  const candidates: string[] = []
+  while (true) {
+    candidates.push(join(currentPath, 'package.json'))
+
+    const parentPath = dirname(currentPath)
+    if (parentPath === currentPath) break
+    currentPath = parentPath
+  }
+
+  return candidates
+}
+
+function uniquePaths(paths: Array<string | null>): string[] {
+  const normalized = new Set<string>()
+  const result: string[] = []
+
+  for (const path of paths) {
+    if (!path) continue
+    const normalizedPath = normalize(path)
+    if (normalized.has(normalizedPath)) continue
+    normalized.add(normalizedPath)
+    result.push(path)
+  }
+
+  return result
 }
 
 async function fetchLatestNpmVersion(
