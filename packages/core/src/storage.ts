@@ -51,22 +51,6 @@ export async function initProjectMemory(projectPath: string): Promise<string> {
   await mkdir(join(basePath, 'sessions'), { recursive: true })
   await mkdir(join(basePath, 'exchanges'), { recursive: true })
 
-  const defaultFiles = [
-    'project.md',
-    'architecture.md',
-    'current-state.md',
-    'decisions.md',
-    'mistakes.md',
-    'tasks.md',
-  ]
-
-  for (const file of defaultFiles) {
-    const filePath = join(basePath, file)
-    if (!existsSync(filePath)) {
-      await writeFile(filePath, '', 'utf-8')
-    }
-  }
-
   await initAutoCaptureConfig(basePath)
 
   return basePath

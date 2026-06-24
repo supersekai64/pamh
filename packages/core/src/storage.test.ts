@@ -36,9 +36,9 @@ describe('storage', () => {
       expect(existsSync(join(basePath, 'sessions'))).toBe(true)
       expect(existsSync(join(basePath, 'exchanges'))).toBe(true)
       expect(existsSync(join(basePath, 'auto-capture.yaml'))).toBe(true)
-      expect(existsSync(join(basePath, 'project.md'))).toBe(true)
-      expect(existsSync(join(basePath, 'architecture.md'))).toBe(true)
-      expect(existsSync(join(basePath, 'decisions.md'))).toBe(true)
+      expect(existsSync(join(basePath, 'project.md'))).toBe(false)
+      expect(existsSync(join(basePath, 'architecture.md'))).toBe(false)
+      expect(existsSync(join(basePath, 'decisions.md'))).toBe(false)
     })
   })
 
