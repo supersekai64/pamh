@@ -896,13 +896,13 @@ function SettingsPage({
                 value={form.mode}
                 onValueChange={(value) => onFormChange({ ...form, mode: value as AutoCaptureMode })}
               >
-                <SelectTrigger id="capture-mode" className="w-full !text-sm" disabled={isLoading}>
+                <SelectTrigger id="capture-mode" className="w-full" disabled={isLoading}>
                   <span>{captureModeCopy[form.mode].label}</span>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
                     {Object.entries(captureModeCopy).map(([value, copy]) => (
-                      <SelectItem key={value} value={value} className="!text-sm">
+                      <SelectItem key={value} value={value}>
                         {copy.label}
                       </SelectItem>
                     ))}
@@ -919,7 +919,7 @@ function SettingsPage({
                 disabled={isLoading}
                 onChange={(event) => onFormChange({ ...form, ignoredConcepts: event.target.value })}
                 placeholder="concept; another concept; internal term"
-                className="min-h-32 !text-sm md:!text-sm"
+                className="min-h-32"
               />
             </div>
 
