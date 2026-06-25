@@ -1,21 +1,71 @@
-MIT License
+PAM Source-Available License v1.0
 
-Copyright (c) 2026 PAM contributors
+Copyright (c) 2026 Paul and PAM contributors.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This license governs the PAM software, including all source code, packages,
+documentation, examples, and other files in this repository, unless a file
+states otherwise.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. Permission
+
+You may:
+
+- read and study the source code;
+- use the software for personal, educational, research, evaluation, and other
+  non-commercial purposes;
+- fork, copy, and modify the source code for non-commercial purposes;
+- submit contributions to the upstream PAM project; and
+- redistribute modified source code for non-commercial purposes, provided that
+  the redistribution remains under this same license and includes this license
+  notice.
+
+2. Commercial Restrictions
+
+You may not, without prior written permission from the copyright holder:
+
+- sell, rent, lease, sublicense, or otherwise commercialize the software;
+- sell, rent, lease, sublicense, or otherwise commercialize a fork, modified
+  version, derivative work, package, binary, hosted service, or bundled product
+  based on the software;
+- integrate the software into a commercial product, hosted service, internal
+  commercial platform, paid workflow, or revenue-generating offering;
+- publish modified packages, binaries, installers, container images, or other
+  derivative distributions to package registries, app stores, marketplaces, or
+  similar distribution channels; or
+- remove, obscure, or alter this license notice or any copyright notice.
+
+3. Forks and Derivative Works
+
+Forks and derivative works are permitted for non-commercial development and
+collaboration only. Any redistributed fork or derivative source code must remain
+under this same license. No fork or derivative work may be presented as the
+official PAM project or as endorsed by the PAM maintainers without prior written
+permission.
+
+4. Contributions
+
+By submitting a contribution to the upstream PAM project, you agree that your
+contribution may be used, modified, distributed, and relicensed by the project
+maintainers as part of PAM. You represent that you have the right to submit the
+contribution under these terms.
+
+5. Trademarks and Branding
+
+This license does not grant any rights to use the PAM name, logos, trademarks,
+domain names, package names, or other branding except to accurately describe a
+fork's relationship to the original project.
+
+6. Separate Commercial License
+
+Commercial use, commercial redistribution, commercial integration, hosted
+service use, and derivative distribution rights require a separate written
+license from the copyright holder.
+
+7. No Warranty
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NONINFRINGEMENT. IN NO EVENT SHALL
+THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY CLAIM, DAMAGES, OR
+OTHER LIABILITY ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE
+USE OR OTHER DEALINGS IN THE SOFTWARE.

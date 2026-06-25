@@ -4,7 +4,7 @@
   "private": true,
   "description": "Portable AI Memory",
   "type": "module",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "packageManager": "pnpm@9.15.0",
   "scripts": {
     "setup": "pnpm install && pnpm build && pnpm link:cli",

@@ -1,9 +1,9 @@
 {
   "name": "@helloworlkd/pam-api",
-  "version": "0.1.18",
+  "version": "0.1.19",
   "description": "PAM API - Local HTTP API for PAM clients",
   "type": "module",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/supersekai64/pam.git",

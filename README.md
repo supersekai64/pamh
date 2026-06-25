@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/%40helloworlkd%2Fpam-cli?label=pam-cli)](https://www.npmjs.com/package/@helloworlkd/pam-cli)
 [![npm downloads](https://img.shields.io/npm/dm/%40helloworlkd%2Fpam-cli?label=npm%20downloads)](https://www.npmjs.com/package/@helloworlkd/pam-cli)
 [![Node.js](https://img.shields.io/node/v/%40helloworlkd%2Fpam-cli?label=node)](#requirements)
-[![License](https://img.shields.io/npm/l/%40helloworlkd%2Fpam-cli?label=license)](LICENSE)
+[![License](https://img.shields.io/badge/license-source--available-blue)](LICENSE)
 
 Persistent, local, model-independent memory for AI-assisted development.
 
@@ -280,4 +280,8 @@ PAM/
 
 ## License
 
-MIT
+PAM is source-available under the [PAM Source-Available License v1.0](LICENSE).
+You may read, fork, modify, and contribute to the project for non-commercial
+purposes. Commercial use, commercial redistribution, commercial integration,
+hosted service use, and derivative package distribution require prior written
+permission.

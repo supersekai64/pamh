@@ -1,9 +1,9 @@
 {
   "name": "@helloworlkd/pam-protocol",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "PAM MCP - Model Context Protocol server for PAM",
   "type": "module",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/supersekai64/pam.git",
