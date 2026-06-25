@@ -14,6 +14,10 @@ sessions, editors, agents, and LLM providers.
 
 PAM is not a hosted chat product. It is a local memory layer that you control.
 
+<p align="center">
+  <img src="docs/assets/screenshot-01.png" alt="PAM dashboard showing active memories, selected prompt sources, concepts, knowledge graph, and package versions" width="960">
+</p>
+
 ## Start Here
 
 - If you want to use PAM from npm, install `@helloworlkd/pam-cli` and run the
@@ -69,6 +73,13 @@ What each step does:
 When an IDE or AI client is already running, restart or reload it after
 generating integration files so it picks up the new MCP configuration and
 instructions.
+
+The local UI also includes a searchable memory inventory with status filters,
+typed memories, source attribution, and quick row actions.
+
+<p align="center">
+  <img src="docs/assets/screenshot-02.png" alt="PAM memory inventory showing searchable active memories with type, status, updated time, and source columns" width="960">
+</p>
 
 ## MCP Setup
 
