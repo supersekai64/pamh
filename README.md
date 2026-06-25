@@ -61,20 +61,6 @@ npm install -g @helloworlkd/pam-cli@latest
 Stopping PAM services first avoids native SQLite file locks, especially on
 Windows.
 
-### Project-Local CLI
-
-For a project that already has a `package.json`:
-
-```bash
-cd your-project
-npm install -D @helloworlkd/pam-cli
-```
-
-Local install bootstraps `.ai-memory/` automatically. It does not guess which
-IDE or AI-agent files you want, so run `pam init` afterwards to generate
-integrations. Set `PAM_SKIP_PROJECT_INIT=1` before install if you do not want
-postinstall to initialize project memory.
-
 ## First Project Setup
 
 Run these commands in the project that should own the memory store:
