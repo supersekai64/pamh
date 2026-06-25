@@ -19,8 +19,8 @@ PAM is not a hosted chat product. It is a local memory layer that you control.
 
 - If you want to use PAM from npm, install `@helloworlkd/pam-cli` and run the
   `pam` command.
-- If you want to integrate PAM into another TypeScript tool, use the published
-  packages listed in [Published Packages](#published-packages).
+- If you want to integrate PAM into another TypeScript tool, use the examples in
+  [Programmatic Usage](#programmatic-usage).
 - If you want to fork or contribute to PAM, use the workflow in
   [Development From Source](#development-from-source).
 
@@ -42,24 +42,12 @@ pam --version
 This installs the `pam` command globally. The CLI package pulls compatible
 versions of the core, API, protocol, and UI packages.
 
-If npm does not show progress during the first install, run:
-
-```bash
-npm install -g @helloworlkd/pam-cli --loglevel=info --foreground-scripts --timing
-```
-
-This makes npm print package downloads, native install scripts, and timing
-information instead of leaving the terminal apparently idle.
-
 For future global updates, stop any running `pam ui` or `pam server start`
 processes, then run npm directly:
 
 ```bash
 npm install -g @helloworlkd/pam-cli@latest
 ```
-
-Stopping PAM services first avoids native SQLite file locks, especially on
-Windows.
 
 ## First Project Setup
 
@@ -165,21 +153,10 @@ Use `assisted` mode when you want proposed memories to be reviewed first, or
 
 See [docs/capture-modes.md](docs/capture-modes.md).
 
-## Published Packages
+## Programmatic Usage
 
-All packages are published on npmjs.com under the `@helloworlkd` scope. The
-GitHub repository "Packages" panel only shows packages published to GitHub
-Packages, so it can stay empty even when these npm packages are published.
-
-| Package                                                                                | npm                                                                                                                                         | Use it for                                                                                                                               |
-| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| [`@helloworlkd/pam-cli`](https://www.npmjs.com/package/@helloworlkd/pam-cli)           | [![npm](https://img.shields.io/npm/v/%40helloworlkd%2Fpam-cli?label=version)](https://www.npmjs.com/package/@helloworlkd/pam-cli)           | The `pam` command, project setup, MCP server startup, UI startup, import/export, and maintenance commands.                               |
-| [`@helloworlkd/pam-core`](https://www.npmjs.com/package/@helloworlkd/pam-core)         | [![npm](https://img.shields.io/npm/v/%40helloworlkd%2Fpam-core?label=version)](https://www.npmjs.com/package/@helloworlkd/pam-core)         | TypeScript APIs for storage, Markdown parsing, indexing, search, context compilation, capture, supersession, handoff, and import/export. |
-| [`@helloworlkd/pam-protocol`](https://www.npmjs.com/package/@helloworlkd/pam-protocol) | [![npm](https://img.shields.io/npm/v/%40helloworlkd%2Fpam-protocol?label=version)](https://www.npmjs.com/package/@helloworlkd/pam-protocol) | MCP server and MCP tool handlers for PAM memory access.                                                                                  |
-| [`@helloworlkd/pam-api`](https://www.npmjs.com/package/@helloworlkd/pam-api)           | [![npm](https://img.shields.io/npm/v/%40helloworlkd%2Fpam-api?label=version)](https://www.npmjs.com/package/@helloworlkd/pam-api)           | Local HTTP API server used by the UI and embeddable clients.                                                                             |
-| [`@helloworlkd/pam-ui`](https://www.npmjs.com/package/@helloworlkd/pam-ui)             | [![npm](https://img.shields.io/npm/v/%40helloworlkd%2Fpam-ui?label=version)](https://www.npmjs.com/package/@helloworlkd/pam-ui)             | Built local web UI assets and helper for resolving the UI distribution path.                                                             |
-
-Programmatic core usage:
+Use `@helloworlkd/pam-core` when embedding PAM storage and search in another
+TypeScript tool:
 
 ```ts
 import { createMemory, initProjectMemory, listMemories } from '@helloworlkd/pam-core'
@@ -196,7 +173,7 @@ await createMemory(basePath, {
 const memories = await listMemories(basePath)
 ```
 
-Local API usage:
+Use `@helloworlkd/pam-api` when embedding the local HTTP API:
 
 ```ts
 import { startLocalApiServer } from '@helloworlkd/pam-api'
